@@ -138,6 +138,7 @@ const scoreQuiz = async (req, res) => {
 
 
 // =======================
+// =======================
 // AI FLASHCARDS CONTROLLER
 // =======================
 const generateFlashcards = async (req, res) => {
@@ -149,25 +150,51 @@ const generateFlashcards = async (req, res) => {
     }
 
     const prompt = `
-Create flashcards from the following content.
-Return as question and answer pairs.
+Create flashcards from the following text.
 
-Content:
+Return ONLY valid JSON in this exact format:
+{
+  "flashcards": [
+    {
+      "question": "string",
+      "answer": "string"
+    }
+  ]
+}
+
+Rules:
+- Generate exactly 5 flashcards
+- Do NOT include markdown
+- Do NOT include extra text outside JSON
+
+Text:
 ${text}
 `;
 
-    const flashcards = await generateContent(prompt);
+    let flashcardsRaw = await generateContent(prompt);
 
-    return res.status(200).json({ flashcards });
+    // Clean response
+    flashcardsRaw = flashcardsRaw
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    let parsed;
+
+try {
+  parsed = JSON.parse(flashcardsRaw);
+} catch (parseError) {
+  console.error("Flashcards JSON Parse Error:", flashcardsRaw);
+  return res.status(500).json({
+    message: "Invalid AI response format",
+  });
+}
+
+return res.status(200).json(parsed);
+
+
   } catch (error) {
     console.error("AI Flashcards Error:", error);
     return res.status(500).json({ message: "AI generation failed" });
   }
-};
-
-module.exports = {
-  generateSummary,
-  generateQuiz,
-  generateFlashcards,
-   scoreQuiz, 
 };
