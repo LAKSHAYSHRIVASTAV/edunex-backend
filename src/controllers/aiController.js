@@ -1,4 +1,5 @@
 const { generateContent } = require("../services/geminiService");
+const QuizHistory = require("../models/QuizHistory");
 
 // =======================
 // AI SUMMARY CONTROLLER
@@ -26,8 +27,7 @@ ${text}
   }
 };
 
-/*************  ✨ Windsurf Command 🌟  *************/
-
+// =======================
 // AI QUIZ CONTROLLER
 // =======================
 const generateQuiz = async (req, res) => {
@@ -55,8 +55,8 @@ Return ONLY valid JSON in this exact format:
 
 Rules:
 - Generate exactly 5 questions
-- Each question must have 4 clear options
-- correctAnswer must match full option text (NOT A/B/C/D)
+- Each question must have 4 options
+- correctAnswer must match full option text
 - Do NOT include markdown
 - Do NOT include extra text outside JSON
 
@@ -66,7 +66,6 @@ ${text}
 
     let quizRaw = await generateContent(prompt);
 
-    // 🔥 Clean AI response
     quizRaw = quizRaw
       .replace(/```json/g, "")
       .replace(/```/g, "")
@@ -85,8 +84,6 @@ ${text}
 // =======================
 // QUIZ SCORING CONTROLLER
 // =======================
-const QuizHistory = require("../models/QuizHistory");
-
 const scoreQuiz = async (req, res) => {
   try {
     const { questions, userAnswers } = req.body;
@@ -135,9 +132,6 @@ const scoreQuiz = async (req, res) => {
   }
 };
 
-
-
-// =======================
 // =======================
 // AI FLASHCARDS CONTROLLER
 // =======================
@@ -173,7 +167,6 @@ ${text}
 
     let flashcardsRaw = await generateContent(prompt);
 
-    // Clean response
     flashcardsRaw = flashcardsRaw
       .replace(/```json/g, "")
       .replace(/```/g, "")
@@ -181,20 +174,28 @@ ${text}
 
     let parsed;
 
-try {
-  parsed = JSON.parse(flashcardsRaw);
-} catch (parseError) {
-  console.error("Flashcards JSON Parse Error:", flashcardsRaw);
-  return res.status(500).json({
-    message: "Invalid AI response format",
-  });
-}
+    try {
+      parsed = JSON.parse(flashcardsRaw);
+    } catch (parseError) {
+      console.error("Flashcards JSON Parse Error:", flashcardsRaw);
+      return res.status(500).json({
+        message: "Invalid AI response format",
+      });
+    }
 
-return res.status(200).json(parsed);
-
+    return res.status(200).json(parsed);
 
   } catch (error) {
     console.error("AI Flashcards Error:", error);
     return res.status(500).json({ message: "AI generation failed" });
   }
 };
+
+// ✅ EXPORTS (OUTSIDE FUNCTIONS)
+module.exports = {
+  generateSummary,
+  generateQuiz,
+  generateFlashcards,
+  scoreQuiz,
+};
+
