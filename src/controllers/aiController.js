@@ -27,7 +27,7 @@ ${text}
 };
 
 /*************  ✨ Windsurf Command 🌟  *************/
-// =======================
+
 // AI QUIZ CONTROLLER
 // =======================
 const generateQuiz = async (req, res) => {
@@ -46,8 +46,9 @@ Return ONLY valid JSON in this exact format:
   "questions": [
     {
       "question": "string",
-      "options": ["A", "B", "C", "D"],
-      "correctAnswer": "A | B | C | D"
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": "Must exactly match one option",
+      "explanation": "Short explanation why correct answer is correct"
     }
   ]
 }
@@ -55,27 +56,32 @@ Return ONLY valid JSON in this exact format:
 Rules:
 - Generate exactly 5 questions
 - Each question must have 4 clear options
-- correctAnswer must exactly match one option
-- Do NOT include explanations
+- correctAnswer must match full option text (NOT A/B/C/D)
 - Do NOT include markdown
 - Do NOT include extra text outside JSON
-/*******  9a684ac9-8096-4280-a971-8c5a4dae3310  *******/
 
 Text:
 ${text}
 `;
 
-    const quizRaw = await generateContent(prompt);
+    let quizRaw = await generateContent(prompt);
 
-    // Convert AI string output into JSON
+    // 🔥 Clean AI response
+    quizRaw = quizRaw
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
     const quiz = JSON.parse(quizRaw);
 
     return res.status(200).json({ quiz });
+
   } catch (error) {
     console.error("AI Quiz Error:", error);
     return res.status(500).json({ message: "AI generation failed" });
   }
 };
+
 // =======================
 // QUIZ SCORING CONTROLLER
 // =======================
@@ -94,19 +100,21 @@ const scoreQuiz = async (req, res) => {
     let score = 0;
     const results = [];
 
-    questions.forEach((q, index) => {
-      const isCorrect = q.correctAnswer === userAnswers[index];
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const isCorrect = q.correctAnswer === userAnswers[i];
+
       if (isCorrect) score++;
 
       results.push({
         question: q.question,
         correctAnswer: q.correctAnswer,
-        userAnswer: userAnswers[index],
+        userAnswer: userAnswers[i],
         isCorrect,
+        explanation: q.explanation || "No explanation available",
       });
-    });
+    }
 
-    // ✅ SAVE TO DB
     await QuizHistory.create({
       user: req.user.id,
       questions,
@@ -120,11 +128,14 @@ const scoreQuiz = async (req, res) => {
       score,
       results,
     });
+
   } catch (error) {
     console.error("Quiz Scoring Error:", error);
     return res.status(500).json({ message: "Scoring failed" });
   }
 };
+
+
 
 // =======================
 // AI FLASHCARDS CONTROLLER
