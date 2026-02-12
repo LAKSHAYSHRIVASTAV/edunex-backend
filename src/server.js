@@ -13,6 +13,8 @@ const goalRoutes = require("./routes/goalRoutes");
 const recommendationRoutes = require("./routes/recommendationRoutes"); 
 const leaderboardRoutes = require("./routes/leaderboardRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
+
 
 
 
@@ -39,6 +41,8 @@ app.use("/api/goals", goalRoutes);
 app.use("/api/recommendation", recommendationRoutes); 
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+
 
 
 const PORT = process.env.PORT || 5000;

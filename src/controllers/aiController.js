@@ -1,6 +1,7 @@
 const ChatHistory = require("../models/ChatHistory");
 const { generateContent } = require("../services/geminiService");
 const QuizHistory = require("../models/QuizHistory");
+const UserActivity = require("../models/UserActivity");
 
 // =======================
 // AI SUMMARY CONTROLLER
@@ -21,14 +22,22 @@ ${text}
 
     const summary = await generateContent(prompt);
 
+    // ✅ Save summary activity
+    await UserActivity.create({
+      user: req.user.id,
+      type: "summary",
+      subject: "General",
+      durationMinutes: 5,
+    });
+
     return res.status(200).json({ summary });
+
   } catch (error) {
     console.error("AI Summary Error:", error);
     return res.status(500).json({ message: "AI generation failed" });
   }
 };
 
-// =======================
 // =======================
 // AI QUIZ CONTROLLER
 // =======================
@@ -84,6 +93,7 @@ ${text}
   }
 };
 
+// =======================
 // QUIZ SCORING CONTROLLER
 // =======================
 const scoreQuiz = async (req, res) => {
@@ -123,6 +133,16 @@ const scoreQuiz = async (req, res) => {
       difficulty,
     });
 
+    // ✅ Save quiz activity
+    await UserActivity.create({
+      user: req.user.id,
+      type: "quiz",
+      subject: "General",
+      difficulty,
+      score,
+      durationMinutes: 10,
+    });
+
     return res.status(200).json({
       totalQuestions: questions.length,
       score,
@@ -135,7 +155,6 @@ const scoreQuiz = async (req, res) => {
     return res.status(500).json({ message: "Scoring failed" });
   }
 };
-
 
 // =======================
 // AI FLASHCARDS CONTROLLER
@@ -188,6 +207,14 @@ ${text}
       });
     }
 
+    // ✅ Save flashcard activity
+    await UserActivity.create({
+      user: req.user.id,
+      type: "flashcard",
+      subject: "General",
+      durationMinutes: 5,
+    });
+
     return res.status(200).json(parsed);
 
   } catch (error) {
@@ -195,11 +222,10 @@ ${text}
     return res.status(500).json({ message: "AI generation failed" });
   }
 };
-// =======================
-// 🤖 AI TUTOR CHAT CONTROLLER
-// =======================
 
-
+// =======================
+// AI TUTOR CHAT CONTROLLER
+// =======================
 const aiChat = async (req, res) => {
   try {
     const { message } = req.body;
@@ -220,7 +246,6 @@ ${message}
 
     const reply = await generateContent(prompt);
 
-    // Save conversation
     await ChatHistory.create({
       user: req.user.id,
       messages: [
@@ -237,13 +262,15 @@ ${message}
   }
 };
 
-
-// ✅ EXPORTS (OUTSIDE FUNCTIONS)
+// =======================
+// EXPORTS
+// =======================
 module.exports = {
   generateSummary,
   generateQuiz,
   generateFlashcards,
   scoreQuiz,
-   aiChat,
+  aiChat,
 };
+
 
