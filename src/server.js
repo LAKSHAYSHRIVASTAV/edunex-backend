@@ -8,6 +8,13 @@ const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const protectedRoutes = require("./routes/protectedRoutes");
 const aiRoutes = require("./routes/aiRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
+const goalRoutes = require("./routes/goalRoutes");
+const recommendationRoutes = require("./routes/recommendationRoutes"); 
+const leaderboardRoutes = require("./routes/leaderboardRoutes");
+const profileRoutes = require("./routes/profileRoutes");
+
+
 
 const app = express();
 
@@ -27,11 +34,18 @@ connectDB();
 app.use("/api/auth", authRoutes);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/goals", goalRoutes);
+app.use("/api/recommendation", recommendationRoutes); 
+app.use("/api/leaderboard", leaderboardRoutes);
+app.use("/api/profile", profileRoutes);
+
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
 
 

@@ -1,3 +1,4 @@
+const ChatHistory = require("../models/ChatHistory");
 const { generateContent } = require("../services/geminiService");
 const QuizHistory = require("../models/QuizHistory");
 
@@ -28,18 +29,19 @@ ${text}
 };
 
 // =======================
+// =======================
 // AI QUIZ CONTROLLER
 // =======================
 const generateQuiz = async (req, res) => {
   try {
-    const { text } = req.body;
+    const { text, difficulty = "medium" } = req.body;
 
     if (!text) {
       return res.status(400).json({ message: "Text is required" });
     }
 
     const prompt = `
-Create a quiz from the following text.
+Create a ${difficulty} level quiz from the following text.
 
 Return ONLY valid JSON in this exact format:
 {
@@ -55,6 +57,7 @@ Return ONLY valid JSON in this exact format:
 
 Rules:
 - Generate exactly 5 questions
+- Difficulty level: ${difficulty}
 - Each question must have 4 options
 - correctAnswer must match full option text
 - Do NOT include markdown
@@ -73,7 +76,7 @@ ${text}
 
     const quiz = JSON.parse(quizRaw);
 
-    return res.status(200).json({ quiz });
+    return res.status(200).json({ quiz, difficulty });
 
   } catch (error) {
     console.error("AI Quiz Error:", error);
@@ -81,12 +84,11 @@ ${text}
   }
 };
 
-// =======================
 // QUIZ SCORING CONTROLLER
 // =======================
 const scoreQuiz = async (req, res) => {
   try {
-    const { questions, userAnswers } = req.body;
+    const { questions, userAnswers, difficulty = "medium" } = req.body;
 
     if (!questions || !userAnswers) {
       return res.status(400).json({
@@ -118,11 +120,13 @@ const scoreQuiz = async (req, res) => {
       userAnswers,
       score,
       totalQuestions: questions.length,
+      difficulty,
     });
 
     return res.status(200).json({
       totalQuestions: questions.length,
       score,
+      difficulty,
       results,
     });
 
@@ -131,6 +135,7 @@ const scoreQuiz = async (req, res) => {
     return res.status(500).json({ message: "Scoring failed" });
   }
 };
+
 
 // =======================
 // AI FLASHCARDS CONTROLLER
@@ -190,6 +195,48 @@ ${text}
     return res.status(500).json({ message: "AI generation failed" });
   }
 };
+// =======================
+// 🤖 AI TUTOR CHAT CONTROLLER
+// =======================
+
+
+const aiChat = async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ message: "Message is required" });
+    }
+
+    const prompt = `
+You are an intelligent AI tutor.
+
+Explain clearly and simply.
+Provide examples if helpful.
+
+Question:
+${message}
+`;
+
+    const reply = await generateContent(prompt);
+
+    // Save conversation
+    await ChatHistory.create({
+      user: req.user.id,
+      messages: [
+        { role: "user", content: message },
+        { role: "ai", content: reply },
+      ],
+    });
+
+    return res.status(200).json({ reply });
+
+  } catch (error) {
+    console.error("AI Chat Error:", error);
+    return res.status(500).json({ message: "AI chat failed" });
+  }
+};
+
 
 // ✅ EXPORTS (OUTSIDE FUNCTIONS)
 module.exports = {
@@ -197,5 +244,6 @@ module.exports = {
   generateQuiz,
   generateFlashcards,
   scoreQuiz,
+   aiChat,
 };
 

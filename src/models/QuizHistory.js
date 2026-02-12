@@ -23,8 +23,14 @@ const quizHistorySchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    difficulty: {
+      type: String,
+      enum: ["easy", "medium", "hard"],
+      default: "medium",
+    },
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model("QuizHistory", quizHistorySchema);
+

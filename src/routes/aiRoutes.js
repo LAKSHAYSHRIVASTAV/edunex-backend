@@ -8,13 +8,16 @@ const {
   generateSummary,
   generateQuiz,
   generateFlashcards,
-  scoreQuiz, // ✅ ADD THIS
+  scoreQuiz,
+  aiChat, // ✅ NEW
 } = require("../controllers/aiController");
 
 router.post("/summary", authMiddleware, generateSummary);
 router.post("/quiz", authMiddleware, generateQuiz);
 router.post("/flashcards", authMiddleware, generateFlashcards);
-router.post("/quiz/score", authMiddleware, scoreQuiz); // ✅ NOW IT WORKS
+router.post("/quiz/score", authMiddleware, scoreQuiz);
+
+// ✅ NEW AI Tutor Chat Route
+router.post("/chat", authMiddleware, aiChat);
 
 module.exports = router;
-
