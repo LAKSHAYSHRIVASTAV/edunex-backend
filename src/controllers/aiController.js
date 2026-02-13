@@ -3,16 +3,61 @@ const { generateContent } = require("../services/geminiService");
 const QuizHistory = require("../models/QuizHistory");
 const UserActivity = require("../models/UserActivity");
 
-// =======================
-// AI SUMMARY CONTROLLER
-// =======================
+/* ======================================================
+   AUTO SUBJECT DETECTION (NO FRONTEND INPUT NEEDED)
+====================================================== */
+const detectSubject = (text) => {
+  const lower = text.toLowerCase();
+
+  if (
+    lower.includes("math") ||
+    lower.includes("algebra") ||
+    lower.includes("equation")
+  )
+    return "Mathematics";
+
+  if (
+    lower.includes("physics") ||
+    lower.includes("force") ||
+    lower.includes("energy")
+  )
+    return "Physics";
+
+  if (
+    lower.includes("chemistry") ||
+    lower.includes("reaction") ||
+    lower.includes("molecule")
+  )
+    return "Chemistry";
+
+  if (
+    lower.includes("biology") ||
+    lower.includes("cell") ||
+    lower.includes("organism")
+  )
+    return "Biology";
+
+  if (
+    lower.includes("english") ||
+    lower.includes("grammar") ||
+    lower.includes("literature")
+  )
+    return "English";
+
+  return "General";
+};
+
+/* ======================================================
+   AI SUMMARY
+====================================================== */
 const generateSummary = async (req, res) => {
   try {
     const { text } = req.body;
 
-    if (!text) {
+    if (!text)
       return res.status(400).json({ message: "Text is required" });
-    }
+
+    const subject = detectSubject(text);
 
     const prompt = `
 Summarize the following content in simple bullet points:
@@ -22,11 +67,10 @@ ${text}
 
     const summary = await generateContent(prompt);
 
-    // ✅ Save summary activity
     await UserActivity.create({
       user: req.user.id,
       type: "summary",
-      subject: "General",
+      subject,
       durationMinutes: 5,
     });
 
@@ -38,16 +82,17 @@ ${text}
   }
 };
 
-// =======================
-// AI QUIZ CONTROLLER
-// =======================
+/* ======================================================
+   AI QUIZ GENERATION
+====================================================== */
 const generateQuiz = async (req, res) => {
   try {
     const { text, difficulty = "medium" } = req.body;
 
-    if (!text) {
+    if (!text)
       return res.status(400).json({ message: "Text is required" });
-    }
+
+    const subject = detectSubject(text);
 
     const prompt = `
 Create a ${difficulty} level quiz from the following text.
@@ -59,16 +104,13 @@ Return ONLY valid JSON in this exact format:
       "question": "string",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctAnswer": "Must exactly match one option",
-      "explanation": "Short explanation why correct answer is correct"
+      "explanation": "Short explanation"
     }
   ]
 }
 
 Rules:
 - Generate exactly 5 questions
-- Difficulty level: ${difficulty}
-- Each question must have 4 options
-- correctAnswer must match full option text
 - Do NOT include markdown
 - Do NOT include extra text outside JSON
 
@@ -85,7 +127,7 @@ ${text}
 
     const quiz = JSON.parse(quizRaw);
 
-    return res.status(200).json({ quiz, difficulty });
+    return res.status(200).json({ quiz, difficulty, subject });
 
   } catch (error) {
     console.error("AI Quiz Error:", error);
@@ -93,25 +135,26 @@ ${text}
   }
 };
 
-// =======================
-// QUIZ SCORING CONTROLLER
-// =======================
+/* ======================================================
+   QUIZ SCORING
+====================================================== */
 const scoreQuiz = async (req, res) => {
   try {
-    const { questions, userAnswers, difficulty = "medium" } = req.body;
+    const { questions, userAnswers, difficulty = "medium" } =
+      req.body;
 
-    if (!questions || !userAnswers) {
+    if (!questions || !userAnswers)
       return res.status(400).json({
         message: "Questions and userAnswers are required",
       });
-    }
 
     let score = 0;
     const results = [];
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      const isCorrect = q.correctAnswer === userAnswers[i];
+      const isCorrect =
+        q.correctAnswer === userAnswers[i];
 
       if (isCorrect) score++;
 
@@ -120,9 +163,14 @@ const scoreQuiz = async (req, res) => {
         correctAnswer: q.correctAnswer,
         userAnswer: userAnswers[i],
         isCorrect,
-        explanation: q.explanation || "No explanation available",
+        explanation:
+          q.explanation || "No explanation available",
       });
     }
+
+    const subject = detectSubject(
+      JSON.stringify(questions)
+    );
 
     await QuizHistory.create({
       user: req.user.id,
@@ -131,13 +179,13 @@ const scoreQuiz = async (req, res) => {
       score,
       totalQuestions: questions.length,
       difficulty,
+      subject,
     });
 
-    // ✅ Save quiz activity
     await UserActivity.create({
       user: req.user.id,
       type: "quiz",
-      subject: "General",
+      subject,
       difficulty,
       score,
       durationMinutes: 10,
@@ -147,6 +195,7 @@ const scoreQuiz = async (req, res) => {
       totalQuestions: questions.length,
       score,
       difficulty,
+      subject,
       results,
     });
 
@@ -156,34 +205,29 @@ const scoreQuiz = async (req, res) => {
   }
 };
 
-// =======================
-// AI FLASHCARDS CONTROLLER
-// =======================
+/* ======================================================
+   FLASHCARDS
+====================================================== */
 const generateFlashcards = async (req, res) => {
   try {
     const { text } = req.body;
 
-    if (!text) {
+    if (!text)
       return res.status(400).json({ message: "Text is required" });
-    }
+
+    const subject = detectSubject(text);
 
     const prompt = `
 Create flashcards from the following text.
 
-Return ONLY valid JSON in this exact format:
+Return ONLY valid JSON in this format:
 {
   "flashcards": [
-    {
-      "question": "string",
-      "answer": "string"
-    }
+    { "question": "string", "answer": "string" }
   ]
 }
 
-Rules:
-- Generate exactly 5 flashcards
-- Do NOT include markdown
-- Do NOT include extra text outside JSON
+Generate exactly 5 flashcards.
 
 Text:
 ${text}
@@ -196,22 +240,12 @@ ${text}
       .replace(/```/g, "")
       .trim();
 
-    let parsed;
+    const parsed = JSON.parse(flashcardsRaw);
 
-    try {
-      parsed = JSON.parse(flashcardsRaw);
-    } catch (parseError) {
-      console.error("Flashcards JSON Parse Error:", flashcardsRaw);
-      return res.status(500).json({
-        message: "Invalid AI response format",
-      });
-    }
-
-    // ✅ Save flashcard activity
     await UserActivity.create({
       user: req.user.id,
       type: "flashcard",
-      subject: "General",
+      subject,
       durationMinutes: 5,
     });
 
@@ -219,32 +253,25 @@ ${text}
 
   } catch (error) {
     console.error("AI Flashcards Error:", error);
-    return res.status(500).json({ message: "AI generation failed" });
+    return res.status(500).json({
+      message: "AI generation failed",
+    });
   }
 };
 
-// =======================
-// AI TUTOR CHAT CONTROLLER
-// =======================
+/* ======================================================
+   AI CHAT
+====================================================== */
 const aiChat = async (req, res) => {
   try {
     const { message } = req.body;
 
-    if (!message) {
-      return res.status(400).json({ message: "Message is required" });
-    }
+    if (!message)
+      return res.status(400).json({
+        message: "Message is required",
+      });
 
-    const prompt = `
-You are an intelligent AI tutor.
-
-Explain clearly and simply.
-Provide examples if helpful.
-
-Question:
-${message}
-`;
-
-    const reply = await generateContent(prompt);
+    const reply = await generateContent(message);
 
     await ChatHistory.create({
       user: req.user.id,
@@ -258,13 +285,12 @@ ${message}
 
   } catch (error) {
     console.error("AI Chat Error:", error);
-    return res.status(500).json({ message: "AI chat failed" });
+    return res.status(500).json({
+      message: "AI chat failed",
+    });
   }
 };
 
-// =======================
-// EXPORTS
-// =======================
 module.exports = {
   generateSummary,
   generateQuiz,
