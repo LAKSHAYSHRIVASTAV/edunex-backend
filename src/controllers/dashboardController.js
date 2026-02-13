@@ -3,7 +3,6 @@ const UserActivity = require("../models/UserActivity");
 exports.getDashboardData = async (req, res) => {
   try {
     const userId = req.user.id;
-
     const activities = await UserActivity.find({ user: userId });
 
     if (!activities.length) {
@@ -23,16 +22,22 @@ exports.getDashboardData = async (req, res) => {
     // ----------------------------
     // Reading Progress
     // ----------------------------
-    const summaries = activities.filter(a => a.type === "summary").length;
+    const summaries = activities.filter(
+      (a) => a.type === "summary"
+    ).length;
     const readingProgress = Math.min(summaries * 10, 100);
 
     // ----------------------------
     // Quiz Completion %
     // ----------------------------
-    const quizzes = activities.filter(a => a.type === "quiz");
+    const quizzes = activities.filter(
+      (a) => a.type === "quiz"
+    );
+
     const avgScore =
       quizzes.length > 0
-        ? quizzes.reduce((acc, q) => acc + q.score, 0) / quizzes.length
+        ? quizzes.reduce((acc, q) => acc + (q.score || 0), 0) /
+          quizzes.length
         : 0;
 
     const quizCompletion = Math.round((avgScore / 5) * 100);
@@ -41,7 +46,7 @@ exports.getDashboardData = async (req, res) => {
     // Flashcards Reviewed
     // ----------------------------
     const flashcardsReviewed = activities.filter(
-      a => a.type === "flashcard"
+      (a) => a.type === "flashcard"
     ).length;
 
     // ----------------------------
@@ -53,24 +58,30 @@ exports.getDashboardData = async (req, res) => {
     );
 
     const totalHours = +(totalMinutes / 60).toFixed(1);
-
     const weeklyStudyHours = totalHours;
 
     // ----------------------------
     // Weekly Activity Chart
     // ----------------------------
-    const today = new Date();
+    const baseDate = new Date(); // ✅ renamed (no conflict)
     const weeklyActivity = [];
 
     for (let i = 6; i >= 0; i--) {
       const day = new Date();
-      day.setDate(today.getDate() - i);
+      day.setDate(baseDate.getDate() - i);
 
       const dayStr = day.toDateString();
 
       const dayMinutes = activities
-        .filter(a => new Date(a.createdAt).toDateString() === dayStr)
-        .reduce((acc, a) => acc + (a.durationMinutes || 0), 0);
+        .filter(
+          (a) =>
+            new Date(a.createdAt).toDateString() ===
+            dayStr
+        )
+        .reduce(
+          (acc, a) => acc + (a.durationMinutes || 0),
+          0
+        );
 
       weeklyActivity.push({
         date: dayStr.slice(0, 3),
@@ -79,41 +90,50 @@ exports.getDashboardData = async (req, res) => {
     }
 
     // ----------------------------
-    // Subject Distribution
+    // Subject Distribution (Percentage)
     // ----------------------------
     const subjectMap = {};
 
-    activities.forEach(a => {
-      subjectMap[a.subject] = (subjectMap[a.subject] || 0) + 1;
+    activities.forEach((a) => {
+      const subject = a.subject || "General";
+      subjectMap[subject] =
+        (subjectMap[subject] || 0) + 1;
     });
 
-    const subjectDistribution = Object.entries(subjectMap).map(
-      ([subject, count]) => ({
-        subject,
-        count,
-      })
-    );
+    const totalActivities = activities.length;
+
+    const subjectDistribution = Object.entries(
+      subjectMap
+    ).map(([subject, count]) => ({
+      subject,
+      count: Math.round(
+        (count / totalActivities) * 100
+      ),
+    }));
 
     // ----------------------------
-    // Study Streak
+    // Study Streak (Fixed)
     // ----------------------------
-    const uniqueDates = [
+    const activityDates = [
       ...new Set(
-        activities.map(a =>
+        activities.map((a) =>
           new Date(a.createdAt).toDateString()
         )
       ),
-    ].sort((a, b) => new Date(b) - new Date(a));
+    ];
 
     let streak = 0;
-    let currentDate = new Date();
+    const today = new Date();
 
-    for (let i = 0; i < uniqueDates.length; i++) {
-      const activityDate = new Date(uniqueDates[i]);
-      const diff =
-        (currentDate - activityDate) / (1000 * 60 * 60 * 24);
+    for (let i = 0; i < 365; i++) {
+      const checkDate = new Date();
+      checkDate.setDate(today.getDate() - i);
 
-      if (Math.floor(diff) === streak) {
+      if (
+        activityDates.includes(
+          checkDate.toDateString()
+        )
+      ) {
         streak++;
       } else {
         break;
@@ -121,7 +141,10 @@ exports.getDashboardData = async (req, res) => {
     }
 
     const avgDailyHours =
-      weeklyActivity.reduce((acc, d) => acc + d.hours, 0) / 7;
+      weeklyActivity.reduce(
+        (acc, d) => acc + d.hours,
+        0
+      ) / 7;
 
     res.json({
       readingProgress,
@@ -134,9 +157,11 @@ exports.getDashboardData = async (req, res) => {
       totalHours,
       avgDailyHours: +avgDailyHours.toFixed(1),
     });
-
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Dashboard data error" });
+    res
+      .status(500)
+      .json({ message: "Dashboard data error" });
   }
 };
+
