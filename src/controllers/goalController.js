@@ -9,8 +9,10 @@ exports.setWeeklyGoal = async (req, res) => {
     const userId = req.user.id;
     const { weeklyQuizTarget } = req.body;
 
-    if (!weeklyQuizTarget) {
-      return res.status(400).json({ message: "Target is required" });
+    if (!weeklyQuizTarget || weeklyQuizTarget <= 0) {
+      return res.status(400).json({
+        message: "Valid weekly target is required",
+      });
     }
 
     let goal = await StudyGoal.findOne({ user: userId });
@@ -42,18 +44,20 @@ exports.getWeeklyGoalProgress = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const goal = await StudyGoal.findOne({ user: userId });
+    let goal = await StudyGoal.findOne({ user: userId });
 
+    // ✅ AUTO CREATE DEFAULT GOAL IF NOT EXISTS
     if (!goal) {
-      return res.json({
-        weeklyQuizTarget: 0,
-        completed: 0,
-        progressPercentage: 0,
+      goal = await StudyGoal.create({
+        user: userId,
+        weeklyQuizTarget: 5, // default value
       });
     }
 
     const today = new Date();
+
     const startOfWeek = new Date();
+    startOfWeek.setHours(0, 0, 0, 0);
     startOfWeek.setDate(today.getDate() - today.getDay());
 
     const quizzesThisWeek = await QuizHistory.find({
@@ -78,6 +82,9 @@ exports.getWeeklyGoalProgress = async (req, res) => {
     });
   } catch (error) {
     console.error("Goal Progress Error:", error);
-    res.status(500).json({ message: "Failed to fetch goal progress" });
+    res.status(500).json({
+      message: "Failed to fetch goal progress",
+    });
   }
 };
+

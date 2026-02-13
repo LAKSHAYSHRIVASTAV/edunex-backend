@@ -14,6 +14,12 @@ const recommendationRoutes = require("./routes/recommendationRoutes");
 const leaderboardRoutes = require("./routes/leaderboardRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const studyRoomRoutes = require("./routes/studyRoomRoutes");
+const friendRoutes = require("./routes/friendRoutes");
+const achievementRoutes = require("./routes/achievementRoutes");
+const studyPlannerRoutes = require("./routes/studyPlannerRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+
 
 
 
@@ -42,6 +48,11 @@ app.use("/api/recommendation", recommendationRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/rooms", studyRoomRoutes);
+app.use("/api/friends", friendRoutes);
+app.use("/api/achievements", achievementRoutes);
+app.use("/api/ai/study-plan", studyPlannerRoutes);
+app.use("/api/admin", adminRoutes);
 
 
 

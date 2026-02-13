@@ -1,8 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const { getLeaderboard } = require("../controllers/leaderboardController");
+
+const {
+  getLeaderboard,
+  getFriendsLeaderboard,
+} = require("../controllers/leaderboardController");
+
 const authMiddleware = require("../middleware/authMiddleware");
 
+// 🌍 Global leaderboard
 router.get("/", authMiddleware, getLeaderboard);
+
+// 👥 Friends leaderboard
+router.get("/friends", authMiddleware, getFriendsLeaderboard);
 
 module.exports = router;
