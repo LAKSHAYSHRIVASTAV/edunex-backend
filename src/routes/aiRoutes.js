@@ -13,15 +13,15 @@ const {
   aiChat,
 } = require("../controllers/aiController");
 
-// 🔥 NEW: Gemini Study Plan Service
+// Gemini Study Plan Service
 const { generateSmartStudyPlan } = require("../services/geminiService");
 
-// 🔥 NEW: AI Study Plan Model
+// AI Study Plan Model
 const AIStudyPlan = require("../models/AIStudyPlan");
 
-// ===============================
-// 📚 Existing AI Routes
-// ===============================
+/* ======================================================
+   EXISTING AI ROUTES
+====================================================== */
 
 router.post("/summary", authMiddleware, generateSummary);
 router.post("/quiz", authMiddleware, generateQuiz);
@@ -29,39 +29,49 @@ router.post("/flashcards", authMiddleware, generateFlashcards);
 router.post("/quiz/score", authMiddleware, scoreQuiz);
 router.post("/chat", authMiddleware, aiChat);
 
-// ===============================
-// 🧠 NEW: AI Study Plan Generator
-// ===============================
+/* ======================================================
+   AI STUDY PLAN GENERATOR
+====================================================== */
 
 router.post("/generate-plan", authMiddleware, async (req, res) => {
   try {
-    const { subjects, examDate, hoursPerDay } = req.body;
+    const { subject, topics, examDate, hoursPerDay } = req.body;
 
-    if (!subjects || !examDate || !hoursPerDay) {
+    if (!subject || !topics || !examDate || !hoursPerDay) {
       return res.status(400).json({
-        error: "Subjects, examDate, and hoursPerDay are required",
+        error: "subject, topics, examDate, and hoursPerDay are required",
       });
     }
 
-    // 🔥 Call Gemini Service
+    // 🔥 Call Gemini
     const planText = await generateSmartStudyPlan({
-      subjects,
+      subject,
+      topics,
       examDate,
       hoursPerDay,
     });
 
-    // 🔥 Clean possible markdown formatting
+    // 🔥 Clean markdown formatting if Gemini adds it
     const cleaned = planText
       .replace(/```json/g, "")
       .replace(/```/g, "")
       .trim();
 
-    const parsedPlan = JSON.parse(cleaned);
+    let parsedPlan;
+
+    try {
+      parsedPlan = JSON.parse(cleaned);
+    } catch (parseError) {
+      console.error("❌ JSON Parse Error:", parseError);
+      return res.status(500).json({
+        error: "AI returned invalid JSON format",
+      });
+    }
 
     // 🔥 Save to Database
     const savedPlan = await AIStudyPlan.create({
       user: req.user.id,
-      subjects,
+      subjects: subject,
       examDate,
       hoursPerDay,
       generatedPlan: parsedPlan,
@@ -78,4 +88,5 @@ router.post("/generate-plan", authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+
 

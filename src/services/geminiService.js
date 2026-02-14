@@ -3,7 +3,9 @@ const fetch = require("node-fetch");
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const API_KEY = process.env.GEMINI_API_KEY;
 
-// 1️⃣ List models available for YOUR key
+/* ======================================================
+   LIST AVAILABLE MODELS
+====================================================== */
 async function listModels() {
   const res = await fetch(`${BASE_URL}/models?key=${API_KEY}`);
   const data = await res.json();
@@ -16,11 +18,12 @@ async function listModels() {
   return data.models;
 }
 
-// 2️⃣ Generate content using the FIRST supported text model
+/* ======================================================
+   GENERATE CONTENT (GENERIC)
+====================================================== */
 async function generateContent(prompt) {
   const models = await listModels();
 
-  // Pick first model that supports generateContent
   const model = models.find(m =>
     m.supportedGenerationMethods?.includes("generateContent")
   );
@@ -50,7 +53,54 @@ async function generateContent(prompt) {
   return data.candidates[0].content.parts[0].text;
 }
 
-module.exports = { generateContent };
+/* ======================================================
+   AI STUDY PLAN GENERATOR
+====================================================== */
+async function generateSmartStudyPlan({ subject, topics, examDate, hoursPerDay }) {
+
+  const prompt = `
+You are an intelligent academic planner.
+
+Create a structured weekly study plan in STRICT JSON format.
+
+Subject: ${subject}
+Topics: ${topics}
+Exam Date: ${examDate}
+Daily Study Hours: ${hoursPerDay}
+
+Instructions:
+- Divide into weeks
+- Distribute topics evenly
+- Allocate hours logically
+- Include revision days before exam
+- Return ONLY valid JSON
+- No markdown
+- No extra explanation text
+
+Required Format:
+{
+  "weeks": [
+    {
+      "week": "Week 1",
+      "days": [
+        {
+          "day": "Day 1",
+          "focus": "Topic name",
+          "hours": 2
+        }
+      ]
+    }
+  ]
+}
+`;
+
+  return await generateContent(prompt);
+}
+
+module.exports = {
+  generateContent,
+  generateSmartStudyPlan,
+};
 
 
 

@@ -51,7 +51,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/rooms", studyRoomRoutes);
 app.use("/api/friends", friendRoutes);
 app.use("/api/achievements", achievementRoutes);
-app.use("/api/ai/study-plan", studyPlannerRoutes);
+app.use("/api/study-plan", studyPlannerRoutes);
 app.use("/api/admin", adminRoutes);
 
 

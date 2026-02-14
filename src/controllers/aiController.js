@@ -2,6 +2,8 @@ const ChatHistory = require("../models/ChatHistory");
 const { generateContent } = require("../services/geminiService");
 const QuizHistory = require("../models/QuizHistory");
 const UserActivity = require("../models/UserActivity");
+const AIStudyPlan = require("../models/AIStudyPlan");
+
 
 /* ======================================================
    AUTO SUBJECT DETECTION (NO FRONTEND INPUT NEEDED)
@@ -290,6 +292,83 @@ const aiChat = async (req, res) => {
     });
   }
 };
+/* ======================================================
+   AI STUDY PLAN GENERATOR
+====================================================== */
+const generateStudyPlan = async (req, res) => {
+  try {
+    const { subject, topics, examDate, hoursPerDay } = req.body;
+
+    if (!subject || !topics || !examDate || !hoursPerDay) {
+      return res.status(400).json({
+        message: "All fields are required",
+      });
+    }
+
+    const prompt = `
+You are an intelligent academic planner.
+
+Create a structured weekly study plan in STRICT JSON format.
+
+User Details:
+Subject: ${subject}
+Topics: ${topics}
+Exam Date: ${examDate}
+Study Hours Per Day: ${hoursPerDay}
+
+Instructions:
+- Divide schedule into weeks
+- Distribute topics evenly
+- Allocate daily study hours logically
+- Include revision days before exam
+- Return ONLY valid JSON
+- No markdown
+- No explanation text
+
+Required Format:
+{
+  "weeks": [
+    {
+      "week": "Week 1",
+      "days": [
+        {
+          "day": "Day 1",
+          "focus": "Topic name",
+          "hours": 2
+        }
+      ]
+    }
+  ]
+}
+`;
+
+    let aiRaw = await generateContent(prompt);
+
+    // Clean possible markdown formatting
+    aiRaw = aiRaw
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    const structuredPlan = JSON.parse(aiRaw);
+
+    const savedPlan = await AIStudyPlan.create({
+      user: req.user.id,
+      subjects: subject,
+      examDate,
+      hoursPerDay,
+      generatedPlan: structuredPlan,
+    });
+
+    return res.status(200).json(savedPlan);
+
+  } catch (error) {
+    console.error("AI Study Plan Error:", error);
+    return res.status(500).json({
+      message: "AI study plan generation failed",
+    });
+  }
+};
 
 module.exports = {
   generateSummary,
@@ -297,6 +376,7 @@ module.exports = {
   generateFlashcards,
   scoreQuiz,
   aiChat,
+  generateStudyPlan,
 };
 
 
