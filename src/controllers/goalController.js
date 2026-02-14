@@ -2,26 +2,22 @@ const StudyGoal = require("../models/StudyGoal");
 const QuizHistory = require("../models/QuizHistory");
 
 // =======================
-// 🎯 Set or Update Weekly Goal
+// 🎯 Update Weekly Goal
 // =======================
-// Update weekly goal
-// ✏️ Update Weekly Goal
 exports.updateWeeklyGoal = async (req, res) => {
   try {
     const { weeklyQuizTarget } = req.body;
+    const userId = req.user.id;
 
-    const goal = await Goal.findOneAndUpdate(
-      { user: req.user.id },
+    const goal = await StudyGoal.findOneAndUpdate(
+      { user: userId },
       { weeklyQuizTarget },
-      { new: true }
+      { new: true, upsert: true } // auto-create if not exists
     );
-
-    if (!goal) {
-      return res.status(404).json({ message: "Goal not found" });
-    }
 
     res.json(goal);
   } catch (error) {
+    console.error("Update Goal Error:", error);
     res.status(500).json({ message: "Error updating goal" });
   }
 };
@@ -35,11 +31,11 @@ exports.getWeeklyGoalProgress = async (req, res) => {
 
     let goal = await StudyGoal.findOne({ user: userId });
 
-    // ✅ AUTO CREATE DEFAULT GOAL IF NOT EXISTS
+    // Auto create default goal if not exists
     if (!goal) {
       goal = await StudyGoal.create({
         user: userId,
-        weeklyQuizTarget: 5, // default value
+        weeklyQuizTarget: 5,
       });
     }
 
@@ -76,4 +72,5 @@ exports.getWeeklyGoalProgress = async (req, res) => {
     });
   }
 };
+
 
