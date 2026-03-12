@@ -19,7 +19,7 @@ const friendRoutes = require("./routes/friendRoutes");
 const achievementRoutes = require("./routes/achievementRoutes");
 const studyPlannerRoutes = require("./routes/studyPlannerRoutes");
 const adminRoutes = require("./routes/adminRoutes");
-const rlRoutes = require("./src/routes/rlRoutes");
+const rlRoutes = require("./routes/rlRoutes");
 
 
 
