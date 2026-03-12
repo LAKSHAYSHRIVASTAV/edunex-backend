@@ -294,7 +294,8 @@ const aiChat = async (req, res) => {
 };
   /* ======================================================
   /* ======================================================
-   AI STUDY PLAN GENERATOR
+   /* ======================================================
+   AI STUDY PLAN GENERATOR 
 ====================================================== */
 const generateStudyPlan = async (req, res) => {
   try {
@@ -306,59 +307,42 @@ const generateStudyPlan = async (req, res) => {
       });
     }
 
-    const prompt = `
-You are an intelligent academic planner.
+    const topicList = topics.split(",").map((t) => t.trim());
 
-Create a structured weekly study plan.
+    const today = new Date();
+    const exam = new Date(examDate);
 
-Return ONLY JSON in this format:
-
-{
-  "weeks": [
-    {
-      "week": "Week 1",
-      "days": [
-        {
-          "day": "Day 1",
-          "focus": "Topic name",
-          "hours": 2
-        }
-      ]
-    }
-  ]
-}
-
-User Details:
-Subject: ${subject}
-Topics: ${topics}
-Exam Date: ${examDate}
-Study Hours Per Day: ${hoursPerDay}
-`;
-
-    let aiRaw = await generateContent(prompt);
-
-    aiRaw = aiRaw
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
-
-    const structuredPlan = JSON.parse(aiRaw);
-
-    /* ===== Convert AI format → Frontend format safely ===== */
+    const daysLeft = Math.max(
+      Math.ceil((exam - today) / (1000 * 60 * 60 * 24)),
+      1
+    );
 
     const generatedPlan = {};
 
-    if (structuredPlan.weeks && Array.isArray(structuredPlan.weeks)) {
-      structuredPlan.weeks.forEach((weekObj, index) => {
-        const weekKey = `week${index + 1}`;
+    let dayCounter = 1;
+    let weekNumber = 1;
 
-        generatedPlan[weekKey] = (weekObj.days || []).map((dayObj, i) => ({
-          day: dayObj.day || `Day ${i + 1}`,
-          subject: dayObj.focus || subject,
-          duration: `${dayObj.hours || hoursPerDay} hours`,
-          focus: `Study ${dayObj.focus || topics}`,
-        }));
+    for (let i = 0; i < daysLeft; i++) {
+      const weekKey = `week${weekNumber}`;
+
+      if (!generatedPlan[weekKey]) {
+        generatedPlan[weekKey] = [];
+      }
+
+      const topic = topicList[i % topicList.length];
+
+      generatedPlan[weekKey].push({
+        day: `Day ${dayCounter}`,
+        subject: topic,
+        duration: `${hoursPerDay} hours`,
+        focus: `Study and practice ${topic}`,
       });
+
+      dayCounter++;
+
+      if (dayCounter % 7 === 0) {
+        weekNumber++;
+      }
     }
 
     await AIStudyPlan.create({
