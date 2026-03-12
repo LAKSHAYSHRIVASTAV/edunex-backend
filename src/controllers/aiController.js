@@ -292,7 +292,7 @@ const aiChat = async (req, res) => {
     });
   }
 };
-/* ======================================================
+  /* ======================================================
    AI STUDY PLAN GENERATOR
 ====================================================== */
 const generateStudyPlan = async (req, res) => {
@@ -316,14 +316,7 @@ Topics: ${topics}
 Exam Date: ${examDate}
 Study Hours Per Day: ${hoursPerDay}
 
-Instructions:
-- Divide schedule into weeks
-- Distribute topics evenly
-- Allocate daily study hours logically
-- Include revision days before exam
-- Return ONLY valid JSON
-- No markdown
-- No explanation text
+Return ONLY JSON.
 
 Required Format:
 {
@@ -344,7 +337,6 @@ Required Format:
 
     let aiRaw = await generateContent(prompt);
 
-    // Clean possible markdown formatting
     aiRaw = aiRaw
       .replace(/```json/g, "")
       .replace(/```/g, "")
@@ -352,15 +344,32 @@ Required Format:
 
     const structuredPlan = JSON.parse(aiRaw);
 
+    /* ===== Convert AI format → Frontend format ===== */
+
+    const generatedPlan = {};
+
+    structuredPlan.weeks.forEach((weekObj, index) => {
+      const weekKey = `week${index + 1}`;
+
+      generatedPlan[weekKey] = weekObj.days.map((day) => ({
+        day: day.day,
+        subject: day.focus,
+        duration: `${day.hours} hours`,
+        focus: `Study ${day.focus}`,
+      }));
+    });
+
     const savedPlan = await AIStudyPlan.create({
       user: req.user.id,
       subjects: subject,
       examDate,
       hoursPerDay,
-      generatedPlan: structuredPlan,
+      generatedPlan,
     });
 
-    return res.status(200).json(savedPlan);
+    return res.status(200).json({
+      generatedPlan,
+    });
 
   } catch (error) {
     console.error("AI Study Plan Error:", error);
