@@ -293,6 +293,7 @@ const aiChat = async (req, res) => {
   }
 };
   /* ======================================================
+  /* ======================================================
    AI STUDY PLAN GENERATOR
 ====================================================== */
 const generateStudyPlan = async (req, res) => {
@@ -308,17 +309,10 @@ const generateStudyPlan = async (req, res) => {
     const prompt = `
 You are an intelligent academic planner.
 
-Create a structured weekly study plan in STRICT JSON format.
+Create a structured weekly study plan.
 
-User Details:
-Subject: ${subject}
-Topics: ${topics}
-Exam Date: ${examDate}
-Study Hours Per Day: ${hoursPerDay}
+Return ONLY JSON in this format:
 
-Return ONLY JSON.
-
-Required Format:
 {
   "weeks": [
     {
@@ -333,6 +327,12 @@ Required Format:
     }
   ]
 }
+
+User Details:
+Subject: ${subject}
+Topics: ${topics}
+Exam Date: ${examDate}
+Study Hours Per Day: ${hoursPerDay}
 `;
 
     let aiRaw = await generateContent(prompt);
@@ -344,22 +344,24 @@ Required Format:
 
     const structuredPlan = JSON.parse(aiRaw);
 
-    /* ===== Convert AI format → Frontend format ===== */
+    /* ===== Convert AI format → Frontend format safely ===== */
 
     const generatedPlan = {};
 
-    structuredPlan.weeks.forEach((weekObj, index) => {
-      const weekKey = `week${index + 1}`;
+    if (structuredPlan.weeks && Array.isArray(structuredPlan.weeks)) {
+      structuredPlan.weeks.forEach((weekObj, index) => {
+        const weekKey = `week${index + 1}`;
 
-      generatedPlan[weekKey] = weekObj.days.map((day) => ({
-        day: day.day,
-        subject: day.focus,
-        duration: `${day.hours} hours`,
-        focus: `Study ${day.focus}`,
-      }));
-    });
+        generatedPlan[weekKey] = (weekObj.days || []).map((dayObj, i) => ({
+          day: dayObj.day || `Day ${i + 1}`,
+          subject: dayObj.focus || subject,
+          duration: `${dayObj.hours || hoursPerDay} hours`,
+          focus: `Study ${dayObj.focus || topics}`,
+        }));
+      });
+    }
 
-    const savedPlan = await AIStudyPlan.create({
+    await AIStudyPlan.create({
       user: req.user.id,
       subjects: subject,
       examDate,
@@ -378,7 +380,6 @@ Required Format:
     });
   }
 };
-
 module.exports = {
   generateSummary,
   generateQuiz,
