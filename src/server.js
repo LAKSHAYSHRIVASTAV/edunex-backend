@@ -19,6 +19,7 @@ const friendRoutes = require("./routes/friendRoutes");
 const achievementRoutes = require("./routes/achievementRoutes");
 const studyPlannerRoutes = require("./routes/studyPlannerRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const rlRoutes = require("./src/routes/rlRoutes");
 
 
 
@@ -53,6 +54,8 @@ app.use("/api/friends", friendRoutes);
 app.use("/api/achievements", achievementRoutes);
 app.use("/api/study-plan", studyPlannerRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/rl", rlRoutes);
+
 
 
 
