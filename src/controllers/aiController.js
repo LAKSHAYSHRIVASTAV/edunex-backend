@@ -295,7 +295,7 @@ const aiChat = async (req, res) => {
   /* ======================================================
   /* ======================================================
    /* ======================================================
-   AI STUDY PLAN GENERATOR 
+   AI STUDY PLAN GENERATOR (FINAL FIX)
 ====================================================== */
 const generateStudyPlan = async (req, res) => {
   try {
@@ -314,13 +314,13 @@ const generateStudyPlan = async (req, res) => {
 
     const daysLeft = Math.max(
       Math.ceil((exam - today) / (1000 * 60 * 60 * 24)),
-      1
+      7
     );
 
     const generatedPlan = {};
 
-    let dayCounter = 1;
     let weekNumber = 1;
+    let dayCounter = 1;
 
     for (let i = 0; i < daysLeft; i++) {
       const weekKey = `week${weekNumber}`;
@@ -335,12 +335,13 @@ const generateStudyPlan = async (req, res) => {
         day: `Day ${dayCounter}`,
         subject: topic,
         duration: `${hoursPerDay} hours`,
-        focus: `Study and practice ${topic}`,
+        focus: `Study and practice ${topic}`
       });
 
       dayCounter++;
 
-      if (dayCounter % 7 === 0) {
+      if (dayCounter > 7) {
+        dayCounter = 1;
         weekNumber++;
       }
     }
@@ -350,17 +351,17 @@ const generateStudyPlan = async (req, res) => {
       subjects: subject,
       examDate,
       hoursPerDay,
-      generatedPlan,
+      generatedPlan
     });
 
     return res.status(200).json({
-      generatedPlan,
+      generatedPlan
     });
 
   } catch (error) {
     console.error("AI Study Plan Error:", error);
     return res.status(500).json({
-      message: "AI study plan generation failed",
+      message: "AI study plan generation failed"
     });
   }
 };
