@@ -141,4 +141,102 @@ exports.getWeeklyPerformance = async (req, res) => {
     });
   }
 };
+// ========================================
+//  RL LEARNING INSIGHTS
+// ========================================
+
+exports.getLearningInsights = async (req, res) => {
+  try {
+
+    const userId = req.user.id;
+
+    const quizzes = await QuizHistory.find({
+      user: userId,
+    });
+
+    if (quizzes.length === 0) {
+
+      return res.json({
+        masteryScore: 0,
+        weakTopics: [],
+        strongTopics: [],
+        quizCount: 0,
+      });
+
+    }
+
+    /* -----------------------------
+       Calculate mastery score
+    ----------------------------- */
+
+    const masteryScore = Math.round(
+
+      quizzes.reduce(
+        (acc, quiz) =>
+          acc +
+          (quiz.score / quiz.totalQuestions) * 100,
+        0
+      ) / quizzes.length
+
+    );
+
+    /* -----------------------------
+       Topic performance
+    ----------------------------- */
+
+    const topicPerformance = {};
+
+    quizzes.forEach((quiz) => {
+
+      const percent =
+        (quiz.score / quiz.totalQuestions) * 100;
+
+      if (!topicPerformance[quiz.topic]) {
+
+        topicPerformance[quiz.topic] = [];
+
+      }
+
+      topicPerformance[quiz.topic].push(percent);
+
+    });
+
+    const weakTopics = [];
+    const strongTopics = [];
+
+    Object.keys(topicPerformance).forEach((topic) => {
+
+      const scores = topicPerformance[topic];
+
+      const avg =
+        scores.reduce((a, b) => a + b, 0) / scores.length;
+
+      if (avg < 50) weakTopics.push(topic);
+
+      if (avg > 75) strongTopics.push(topic);
+
+    });
+
+    res.json({
+
+      masteryScore,
+
+      weakTopics,
+
+      strongTopics,
+
+      quizCount: quizzes.length,
+
+    });
+
+  } catch (error) {
+
+    console.error("Learning Insights Error:", error);
+
+    res.status(500).json({
+      message: "Failed to generate insights",
+    });
+
+  }
+};
 

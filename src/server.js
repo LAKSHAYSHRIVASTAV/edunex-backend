@@ -20,7 +20,8 @@ const achievementRoutes = require("./routes/achievementRoutes");
 const studyPlannerRoutes = require("./routes/studyPlannerRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const rlRoutes = require("./routes/rlRoutes");
-
+const progressRoutes = require("./routes/progressRoutes");
+const knowledgeGraphRoutes = require("./routes/knowledgeGraphRoutes");
 
 
 
@@ -55,8 +56,8 @@ app.use("/api/achievements", achievementRoutes);
 app.use("/api/study-plan", studyPlannerRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/rl", rlRoutes);
-
-
+app.use("/api/progress", progressRoutes);
+app.use("/api/knowledge-graph", knowledgeGraphRoutes);
 
 
 const PORT = process.env.PORT || 5000;

@@ -1,28 +1,29 @@
 const QuizHistory = require("../models/QuizHistory");
+const StudyProgress = require("../models/StudyProgress");
 const rlService = require("../services/rlService");
 
 exports.getStudyPlan = async (req, res) => {
+
   try {
 
     const quizzes = await QuizHistory.find({
-      user: req.user.id,
+      user: req.user.id
     });
 
     if (quizzes.length === 0) {
       return res.json({
         recommendation:
-          "Start attempting quizzes to generate a personalized study plan.",
+          "Start attempting quizzes to generate a personalized study plan."
       });
     }
 
     // ------------------------------
-    // Average Score
+    // AVERAGE QUIZ SCORE
     // ------------------------------
 
     const averageScore = Math.round(
       quizzes.reduce(
-        (acc, q) =>
-          acc + (q.score / q.totalQuestions) * 100,
+        (acc, q) => acc + (q.score / q.totalQuestions) * 100,
         0
       ) / quizzes.length
     );
@@ -30,14 +31,20 @@ exports.getStudyPlan = async (req, res) => {
     let recommendation = "";
 
     if (averageScore < 50) {
+
       recommendation =
         "Focus on fundamentals. Attempt easier quizzes and revise weak topics.";
+
     } else if (averageScore < 75) {
+
       recommendation =
         "Good progress! Try medium difficulty quizzes to improve consistency.";
+
     } else {
+
       recommendation =
         "Excellent performance! Challenge yourself with advanced quizzes.";
+
     }
 
     // ------------------------------
@@ -88,6 +95,27 @@ exports.getStudyPlan = async (req, res) => {
     });
 
     // ------------------------------
+    // ADD STUDY PROGRESS DATA
+    // ------------------------------
+
+    const weakTopicsData = await StudyProgress.aggregate([
+      {
+        $match: { user: req.user.id }
+      },
+      {
+        $group: {
+          _id: "$topic",
+          avgScore: { $avg: "$score" }
+        }
+      },
+      {
+        $match: { avgScore: { $lt: 0 } }
+      }
+    ]);
+
+    const weakTopics = weakTopicsData.map(t => t._id);
+
+    // ------------------------------
     // REINFORCEMENT LEARNING
     // ------------------------------
 
@@ -96,7 +124,7 @@ exports.getStudyPlan = async (req, res) => {
     const action = await rlService.chooseAction(req.user.id, state);
 
     // ------------------------------
-    // GENERATE STUDY PLAN
+    // GENERATE ADAPTIVE STUDY PLAN
     // ------------------------------
 
     const studyPlan = [];
@@ -110,6 +138,20 @@ exports.getStudyPlan = async (req, res) => {
       });
 
     }
+
+    // repeat weak topics detected from progress
+
+    weakTopics.forEach(topic => {
+
+      studyPlan.push({
+        topic: topic,
+        duration: "30 minutes",
+        difficulty: "medium"
+      });
+
+    });
+
+    // revision block
 
     studyPlan.push({
       topic: "Revision",
@@ -125,6 +167,8 @@ exports.getStudyPlan = async (req, res) => {
 
       weakestTopic,
 
+      weakTopics,
+
       recommendedDifficulty: action,
 
       studyPlan,
@@ -138,8 +182,9 @@ exports.getStudyPlan = async (req, res) => {
     console.error("Study Planner Error:", error);
 
     res.status(500).json({
-      message: "Failed to generate study plan",
+      message: "Failed to generate study plan"
     });
 
   }
+
 };
