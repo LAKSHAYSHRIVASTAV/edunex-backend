@@ -1,10 +1,10 @@
-const QuizAttempt = require("../models/QuizAttempt");
+const QuizHistory = require("../models/QuizHistory");
 
 exports.getKnowledgeGraph = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const attempts = await QuizAttempt.find({ userId });
+    const attempts = await QuizHistory.find({ userId });
 
     if (!attempts.length) {
       return res.json({
