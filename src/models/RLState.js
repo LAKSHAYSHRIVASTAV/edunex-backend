@@ -1,19 +1,51 @@
 const mongoose = require("mongoose");
 
-const rlSchema = new mongoose.Schema({
+const RLStateSchema = new mongoose.Schema({
+
   user: {
+
     type: mongoose.Schema.Types.ObjectId,
+
     ref: "User",
-    required: true,
+
+    required: true
+
   },
 
-  state: String,
+  qTable: {
 
-  qValues: {
-    easy_quiz: { type: Number, default: 0 },
-    medium_quiz: { type: Number, default: 0 },
-    hard_quiz: { type: Number, default: 0 },
-  },
+    beginner: {
+
+      easy: Number,
+
+      medium: Number,
+
+      hard: Number
+
+    },
+
+    intermediate: {
+
+      easy: Number,
+
+      medium: Number,
+
+      hard: Number
+
+    },
+
+    advanced: {
+
+      easy: Number,
+
+      medium: Number,
+
+      hard: Number
+
+    }
+
+  }
+
 });
 
-module.exports = mongoose.model("RLState", rlSchema);
+module.exports = mongoose.model("RLState", RLStateSchema);

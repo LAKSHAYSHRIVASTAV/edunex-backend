@@ -16,25 +16,29 @@ const detectSubject = (text) => {
   if (
     lower.includes("math") ||
     lower.includes("algebra") ||
-    lower.includes("equation")
+    lower.includes("equation") ||
+    lower.includes("calculus")
   ) return "Mathematics";
 
   if (
     lower.includes("physics") ||
     lower.includes("force") ||
-    lower.includes("energy")
+    lower.includes("energy") ||
+    lower.includes("motion")
   ) return "Physics";
 
   if (
     lower.includes("chemistry") ||
     lower.includes("reaction") ||
-    lower.includes("molecule")
+    lower.includes("molecule") ||
+    lower.includes("atom")
   ) return "Chemistry";
 
   if (
     lower.includes("biology") ||
     lower.includes("cell") ||
-    lower.includes("organism")
+    lower.includes("organism") ||
+    lower.includes("dna")
   ) return "Biology";
 
   if (
@@ -44,6 +48,28 @@ const detectSubject = (text) => {
   ) return "English";
 
   return "General";
+};
+
+/* ======================================================
+   CALCULATE USER PERFORMANCE
+====================================================== */
+
+const getAverageScore = async (userId) => {
+
+  const quizzes = await QuizHistory.find({ user: userId });
+
+  if (quizzes.length === 0) return 50;
+
+  const totalScore = quizzes.reduce((acc, q) => acc + q.score, 0);
+
+  const totalQuestions = quizzes.reduce(
+    (acc, q) => acc + q.totalQuestions,
+    0
+  );
+
+  return totalQuestions
+    ? (totalScore / totalQuestions) * 100
+    : 50;
 };
 
 /* ======================================================
@@ -81,7 +107,10 @@ ${text}
   } catch (error) {
 
     console.error("AI Summary Error:", error);
-    res.status(500).json({ message: "AI generation failed" });
+
+    res.status(500).json({
+      message: "AI generation failed"
+    });
 
   }
 
@@ -102,21 +131,7 @@ const generateQuiz = async (req, res) => {
 
     const subject = detectSubject(text);
 
-    // --------------------------
-    // RL Difficulty Selection
-    // --------------------------
-
-    const quizzes = await QuizHistory.find({ user: req.user.id });
-
-    let averageScore = 50;
-
-    if (quizzes.length > 0) {
-
-      averageScore =
-        quizzes.reduce((acc, q) => acc + q.score, 0) /
-        quizzes.length;
-
-    }
+    const averageScore = await getAverageScore(req.user.id);
 
     const state = rlService.getState(averageScore);
 
@@ -128,7 +143,7 @@ const generateQuiz = async (req, res) => {
     const prompt = `
 Create a ${difficulty} level quiz from the following text.
 
-Return ONLY valid JSON in this exact format:
+Return ONLY valid JSON in this format:
 
 {
  "questions":[
@@ -165,7 +180,10 @@ ${text}
   } catch (error) {
 
     console.error("AI Quiz Error:", error);
-    res.status(500).json({ message: "AI generation failed" });
+
+    res.status(500).json({
+      message: "AI generation failed"
+    });
 
   }
 
@@ -183,7 +201,7 @@ const scoreQuiz = async (req, res) => {
 
     if (!questions || !userAnswers)
       return res.status(400).json({
-        message: "Questions and userAnswers required",
+        message: "Questions and answers required"
       });
 
     let score = 0;
@@ -210,25 +228,40 @@ const scoreQuiz = async (req, res) => {
 
     const subject = detectSubject(JSON.stringify(questions));
 
+    const topic = questions[0]?.question || "General";
+
     await QuizHistory.create({
 
       user: req.user.id,
+
       questions,
+
       userAnswers,
+
       score,
+
       totalQuestions: questions.length,
+
       difficulty,
-      subject
+
+      subject,
+
+      topic
 
     });
 
     await UserActivity.create({
 
       user: req.user.id,
+
       type: "quiz",
+
       subject,
+
       difficulty,
+
       score,
+
       durationMinutes: 10
 
     });
@@ -236,9 +269,13 @@ const scoreQuiz = async (req, res) => {
     res.json({
 
       totalQuestions: questions.length,
+
       score,
+
       difficulty,
+
       subject,
+
       results
 
     });
@@ -247,7 +284,9 @@ const scoreQuiz = async (req, res) => {
 
     console.error("Quiz Scoring Error:", error);
 
-    res.status(500).json({ message: "Scoring failed" });
+    res.status(500).json({
+      message: "Scoring failed"
+    });
 
   }
 
@@ -297,8 +336,11 @@ ${text}
     await UserActivity.create({
 
       user: req.user.id,
+
       type: "flashcard",
+
       subject,
+
       durationMinutes: 5
 
     });
@@ -332,19 +374,7 @@ const aiChat = async (req, res) => {
         message: "Message required"
       });
 
-    // RL difficulty adaptation
-
-    const quizzes = await QuizHistory.find({ user: req.user.id });
-
-    let averageScore = 50;
-
-    if (quizzes.length > 0) {
-
-      averageScore =
-        quizzes.reduce((acc, q) => acc + q.score, 0) /
-        quizzes.length;
-
-    }
+    const averageScore = await getAverageScore(req.user.id);
 
     const state = rlService.getState(averageScore);
 
@@ -418,6 +448,7 @@ const generateStudyPlan = async (req, res) => {
     const generatedPlan = {};
 
     let weekNumber = 1;
+
     let dayCounter = 1;
 
     for (let i = 0; i < daysLeft; i++) {
@@ -449,6 +480,7 @@ const generateStudyPlan = async (req, res) => {
       if (dayCounter > 7) {
 
         dayCounter = 1;
+
         weekNumber++;
 
       }

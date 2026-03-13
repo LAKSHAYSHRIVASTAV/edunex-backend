@@ -1,73 +1,103 @@
 const RLState = require("../models/RLState");
 
-const actions = ["easy_quiz", "medium_quiz", "hard_quiz"];
+const actions = ["easy", "medium", "hard"];
 
-const alpha = 0.1;
-const gamma = 0.9;
+const alpha = 0.1;   // learning rate
+const gamma = 0.9;   // future reward
+const epsilon = 0.2; // exploration rate
 
-function getState(score) {
-  if (score < 50) return "weak";
-  if (score < 75) return "average";
-  return "strong";
-}
-function getTopicState(topicScore) {
 
-  if (topicScore < 50) return "weak_topic";
+/* ===============================
+   STATE DETECTION
+================================ */
 
-  if (topicScore < 75) return "average_topic";
+const getState = (score) => {
 
-  return "strong_topic";
+  if (score < 40) return "beginner";
 
-}
+  if (score < 70) return "intermediate";
 
-async function chooseAction(userId, state) {
+  return "advanced";
 
-  let rl = await RLState.findOne({ user: userId, state });
+};
 
-  if (!rl) {
-    rl = await RLState.create({
+
+/* ===============================
+   ACTION SELECTION
+================================ */
+
+const chooseAction = async (userId, state) => {
+
+  let userState = await RLState.findOne({ user: userId });
+
+  if (!userState) {
+
+    userState = await RLState.create({
+
       user: userId,
-      state,
+
+      qTable: {
+
+        beginner: { easy: 0, medium: 0, hard: 0 },
+
+        intermediate: { easy: 0, medium: 0, hard: 0 },
+
+        advanced: { easy: 0, medium: 0, hard: 0 }
+
+      }
+
     });
+
   }
 
-  const q = rl.qValues;
+  const qValues = userState.qTable[state];
 
-  const bestAction =
-    Object.keys(q).reduce((a, b) => (q[a] > q[b] ? a : b));
+  if (Math.random() < epsilon) {
 
-  return bestAction;
-}
+    return actions[Math.floor(Math.random() * actions.length)];
 
-async function updateQ(userId, state, action, reward, nextState) {
-
-  let rl = await RLState.findOne({ user: userId, state });
-
-  if (!rl) {
-    rl = await RLState.create({
-      user: userId,
-      state,
-    });
   }
 
-  const q = rl.qValues;
-
-  const maxNext = Math.max(
-    q.easy_quiz,
-    q.medium_quiz,
-    q.hard_quiz
+  return Object.keys(qValues).reduce((a, b) =>
+    qValues[a] > qValues[b] ? a : b
   );
 
-  q[action] =
-    q[action] +
-    alpha * (reward + gamma * maxNext - q[action]);
+};
 
-  await rl.save();
-}
+
+/* ===============================
+   Q LEARNING UPDATE
+================================ */
+
+const updateQValue = async (userId, state, action, reward) => {
+
+  const userState = await RLState.findOne({ user: userId });
+
+  if (!userState) return;
+
+  const currentQ = userState.qTable[state][action];
+
+  const maxFuture = Math.max(
+    ...Object.values(userState.qTable[state])
+  );
+
+  const newQ =
+    currentQ +
+    alpha * (reward + gamma * maxFuture - currentQ);
+
+  userState.qTable[state][action] = newQ;
+
+  await userState.save();
+
+};
+
 
 module.exports = {
+
   getState,
-  getTopicState,
+
   chooseAction,
-  updateQ,
+
+  updateQValue
+
 };
