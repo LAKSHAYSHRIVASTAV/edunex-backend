@@ -1,33 +1,26 @@
 const mongoose = require("mongoose");
 
 const studyProgressSchema = new mongoose.Schema({
-  user: {
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: "User"
+  },
+  subject: {
+    type: String,
     required: true
   },
-
   topic: {
     type: String,
     required: true
   },
-
-  difficulty: {
-    type: String,
-    enum: ["easy", "medium", "hard"],
-    required: true
-  },
-
-  completed: {
-    type: Boolean,
-    default: false
-  },
-
-  score: {
+  progress: {
     type: Number,
     default: 0
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
+});
 
-}, { timestamps: true });
-
-export default mongoose.model("StudyProgress", studyProgressSchema);
+module.exports = mongoose.model("StudyProgress", studyProgressSchema);
