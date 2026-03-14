@@ -349,6 +349,45 @@ ${text}
   }
 
 };
+/* ======================================================
+   AI CHAT
+====================================================== */
+
+const aiChat = async (req, res) => {
+
+  try {
+
+    const { message } = req.body;
+
+    if (!message) {
+      return res.status(400).json({
+        message: "Message required"
+      });
+    }
+
+    const reply = await generateContent(message);
+
+    await ChatHistory.create({
+      user: req.user.id,
+      messages: [
+        { role: "user", content: message },
+        { role: "ai", content: reply }
+      ]
+    });
+
+    res.json({ reply });
+
+  } catch (error) {
+
+    console.error("AI Chat Error:", error);
+
+    res.status(500).json({
+      message: "AI chat failed"
+    });
+
+  }
+
+};
 
 /* ======================================================
    EXPORTS
@@ -358,7 +397,8 @@ module.exports = {
   generateSummary,
   generateQuiz,
   generateFlashcards,
-  scoreQuiz
+  scoreQuiz,  
+  aiChat,
 };
 
 
