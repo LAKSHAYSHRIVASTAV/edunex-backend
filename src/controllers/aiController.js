@@ -226,29 +226,28 @@ const scoreQuiz = async (req, res) => {
 
     }
 
-    const subject = detectSubject(JSON.stringify(questions));
+const subject = detectSubject(JSON.stringify(questions));
 
-    const topic = questions[0]?.question || "General";
+const topic = questions[0]?.question || "General";
 
-    await QuizHistory.create({
+const cleanSubject = subject
+  ? subject.trim().toLowerCase()
+  : "general";
 
-      user: req.user.id,
+const formattedSubject =
+  cleanSubject.charAt(0).toUpperCase() +
+  cleanSubject.slice(1);
 
-      questions,
-
-      userAnswers,
-
-      score,
-
-      totalQuestions: questions.length,
-
-      difficulty,
-
-      subject,
-
-      topic
-
-    });
+await QuizHistory.create({
+  user: req.user.id,
+  questions,
+  userAnswers,
+  score,
+  totalQuestions: questions.length,
+  difficulty,
+  subject: formattedSubject,
+  topic
+});
 
     await UserActivity.create({
 
