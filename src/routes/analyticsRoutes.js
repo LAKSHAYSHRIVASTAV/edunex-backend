@@ -5,7 +5,7 @@ const {
   getAnalytics,
   getWeeklyPerformance,
   getLearningInsights,
-  getKnowledgeGraph  ,
+  getKnowledgeGraph,
 } = require("../controllers/analyticsController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -16,11 +16,10 @@ router.get("/", authMiddleware, getAnalytics);
 // 📅 Weekly performance
 router.get("/weekly", authMiddleware, getWeeklyPerformance);
 
-// 🧠 RL Learning Insights
+// 🧠 AI Learning Insights
 router.get("/learning-insights", authMiddleware, getLearningInsights);
 
 // 📚 Knowledge Graph
-router.get("/knowledge-graph", getKnowledgeGraph);  
+router.get("/knowledge-graph", authMiddleware, getKnowledgeGraph);
 
 module.exports = router;
-

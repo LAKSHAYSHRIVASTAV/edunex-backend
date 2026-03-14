@@ -137,7 +137,7 @@ exports.getWeeklyPerformance = async (req, res) => {
 };
 
 /* ========================================
-   🧠 RL LEARNING INSIGHTS
+   🧠 AI LEARNING INSIGHTS
 ======================================== */
 exports.getLearningInsights = async (req, res) => {
   try {
@@ -167,13 +167,16 @@ exports.getLearningInsights = async (req, res) => {
     const topicPerformance = {};
 
     quizzes.forEach((quiz) => {
-      const percent = (quiz.score / quiz.totalQuestions) * 100;
+      const topic = quiz.topic || "General";
 
-      if (!topicPerformance[quiz.topic]) {
-        topicPerformance[quiz.topic] = [];
+      const percent =
+        (quiz.score / quiz.totalQuestions) * 100;
+
+      if (!topicPerformance[topic]) {
+        topicPerformance[topic] = [];
       }
 
-      topicPerformance[quiz.topic].push(percent);
+      topicPerformance[topic].push(percent);
     });
 
     const weakTopics = [];
@@ -181,11 +184,12 @@ exports.getLearningInsights = async (req, res) => {
 
     Object.keys(topicPerformance).forEach((topic) => {
       const scores = topicPerformance[topic];
+
       const avg =
         scores.reduce((a, b) => a + b, 0) / scores.length;
 
       if (avg < 50) weakTopics.push(topic);
-      if (avg > 75) strongTopics.push(topic);
+      if (avg >= 75) strongTopics.push(topic);
     });
 
     res.json({
@@ -214,7 +218,10 @@ exports.getKnowledgeGraph = async (req, res) => {
     });
 
     if (!quizzes || quizzes.length === 0) {
-      return res.json([]);
+      return res.json({
+        labels: [],
+        scores: [],
+      });
     }
 
     const subjectScores = {};
@@ -232,19 +239,23 @@ exports.getKnowledgeGraph = async (req, res) => {
       subjectScores[subject].push(percent);
     });
 
-    const result = Object.keys(subjectScores).map(
-      (subject) => ({
-        subject,
-        averageScore: Math.round(
-          subjectScores[subject].reduce(
-            (a, b) => a + b,
-            0
-          ) / subjectScores[subject].length
-        ),
-      })
-    );
+    const labels = [];
+    const scores = [];
 
-    res.json(result);
+    Object.keys(subjectScores).forEach((subject) => {
+      labels.push(subject);
+
+      const avg =
+        subjectScores[subject].reduce((a, b) => a + b, 0) /
+        subjectScores[subject].length;
+
+      scores.push(Math.round(avg));
+    });
+
+    res.json({
+      labels,
+      scores,
+    });
   } catch (error) {
     console.error("Knowledge Graph Error:", error);
     res.status(500).json({
