@@ -206,7 +206,7 @@ const scoreQuiz = async (req, res) => {
 
   try {
 
-    const { questions, userAnswers, difficulty = "medium" } = req.body;
+    const { questions, userAnswers, difficulty = "medium", subject } = req.body;
 
     if (!questions || !userAnswers)
       return res.status(400).json({
@@ -235,12 +235,13 @@ const scoreQuiz = async (req, res) => {
 
     }
 
-    const subject = detectSubject(JSON.stringify(questions));
+    const detectedSubject =
+      subject || detectSubject(JSON.stringify(questions));
 
     const topic = questions[0]?.question || "General";
 
-    const cleanSubject = subject
-      ? subject.trim().toLowerCase()
+    const cleanSubject = detectedSubject
+      ? detectedSubject.trim().toLowerCase()
       : "general";
 
     const formattedSubject =
@@ -261,7 +262,7 @@ const scoreQuiz = async (req, res) => {
     await UserActivity.create({
       user: req.user.id,
       type: "quiz",
-      subject,
+      subject: formattedSubject,
       difficulty,
       score,
       durationMinutes: 10
@@ -271,7 +272,7 @@ const scoreQuiz = async (req, res) => {
       totalQuestions: questions.length,
       score,
       difficulty,
-      subject,
+      subject: formattedSubject,
       results
     });
 
@@ -350,145 +351,14 @@ ${text}
 };
 
 /* ======================================================
-   AI CHAT
+   EXPORTS
 ====================================================== */
-
-const aiChat = async (req, res) => {
-
-  try {
-
-    const { message } = req.body;
-
-    if (!message)
-      return res.status(400).json({
-        message: "Message required"
-      });
-
-    const averageScore = await getAverageScore(req.user.id);
-
-    const state = rlService.getState(averageScore);
-
-    const difficulty = await rlService.chooseAction(
-      req.user.id,
-      state
-    );
-
-    const prompt = `
-Explain the following question for a ${difficulty} level student:
-
-${message}
-`;
-
-    const reply = await generateContent(prompt);
-
-    await ChatHistory.create({
-      user: req.user.id,
-      messages: [
-        { role: "user", content: message },
-        { role: "ai", content: reply }
-      ]
-    });
-
-    res.json({ reply, difficulty });
-
-  } catch (error) {
-
-    console.error("AI Chat Error:", error);
-
-    res.status(500).json({
-      message: "AI chat failed"
-    });
-
-  }
-
-};
-
-/* ======================================================
-   AI STUDY PLAN
-====================================================== */
-
-const generateStudyPlan = async (req, res) => {
-
-  try {
-
-    const { subject, topics, examDate, hoursPerDay } = req.body;
-
-    if (!subject || !topics || !examDate || !hoursPerDay) {
-      return res.status(400).json({
-        message: "All fields required"
-      });
-    }
-
-    const topicList = topics.split(",").map(t => t.trim());
-
-    const today = new Date();
-    const exam = new Date(examDate);
-
-    const daysLeft = Math.max(
-      Math.ceil((exam - today) / (1000 * 60 * 60 * 24)),
-      7
-    );
-
-    const generatedPlan = {};
-
-    let weekNumber = 1;
-    let dayCounter = 1;
-
-    for (let i = 0; i < daysLeft; i++) {
-
-      const weekKey = `week${weekNumber}`;
-
-      if (!generatedPlan[weekKey]) {
-        generatedPlan[weekKey] = [];
-      }
-
-      const topic = topicList[i % topicList.length];
-
-      generatedPlan[weekKey].push({
-        day: `Day ${dayCounter}`,
-        subject: topic,
-        duration: `${hoursPerDay} hours`,
-        focus: `Study and practice ${topic}`
-      });
-
-      dayCounter++;
-
-      if (dayCounter > 7) {
-        dayCounter = 1;
-        weekNumber++;
-      }
-
-    }
-
-    await AIStudyPlan.create({
-      user: req.user.id,
-      subjects: subject,
-      examDate,
-      hoursPerDay,
-      generatedPlan
-    });
-
-    res.json({ generatedPlan });
-
-  } catch (error) {
-
-    console.error("AI Study Plan Error:", error);
-
-    res.status(500).json({
-      message: "Study plan generation failed"
-    });
-
-  }
-
-};
 
 module.exports = {
   generateSummary,
   generateQuiz,
   generateFlashcards,
-  scoreQuiz,
-  aiChat,
-  generateStudyPlan
+  scoreQuiz
 };
 
 

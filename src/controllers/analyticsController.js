@@ -1,8 +1,8 @@
 const QuizHistory = require("../models/QuizHistory");
 
-// ========================================
-// 📊 MAIN ANALYTICS CONTROLLER
-// ========================================
+/* ========================================
+   📊 MAIN ANALYTICS CONTROLLER
+======================================== */
 exports.getAnalytics = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -78,9 +78,9 @@ exports.getAnalytics = async (req, res) => {
   }
 };
 
-// ========================================
-// 📅 WEEKLY PERFORMANCE
-// ========================================
+/* ========================================
+   📅 WEEKLY PERFORMANCE
+======================================== */
 exports.getWeeklyPerformance = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -136,9 +136,9 @@ exports.getWeeklyPerformance = async (req, res) => {
   }
 };
 
-// ========================================
-// 🧠 RL LEARNING INSIGHTS
-// ========================================
+/* ========================================
+   🧠 RL LEARNING INSIGHTS
+======================================== */
 exports.getLearningInsights = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -202,17 +202,16 @@ exports.getLearningInsights = async (req, res) => {
   }
 };
 
-// ========================================
-// 📚 KNOWLEDGE GRAPH (SUBJECT PERFORMANCE)
-// ========================================
+/* ========================================
+   📚 KNOWLEDGE GRAPH (SUBJECT PERFORMANCE)
+======================================== */
 exports.getKnowledgeGraph = async (req, res) => {
   try {
-    const userId = req.user ? req.user.id : null;
+    const userId = req.user.id;
 
-    // Fetch quizzes
-    const quizzes = await QuizHistory.find(
-      userId ? { user: userId } : {}
-    );
+    const quizzes = await QuizHistory.find({
+      user: userId,
+    });
 
     if (!quizzes || quizzes.length === 0) {
       return res.json([]);
@@ -221,16 +220,16 @@ exports.getKnowledgeGraph = async (req, res) => {
     const subjectScores = {};
 
     quizzes.forEach((quiz) => {
-      if (!quiz.subject) return;
+      const subject = quiz.subject || "General";
 
       const percent =
         (quiz.score / quiz.totalQuestions) * 100;
 
-      if (!subjectScores[quiz.subject]) {
-        subjectScores[quiz.subject] = [];
+      if (!subjectScores[subject]) {
+        subjectScores[subject] = [];
       }
 
-      subjectScores[quiz.subject].push(percent);
+      subjectScores[subject].push(percent);
     });
 
     const result = Object.keys(subjectScores).map(
