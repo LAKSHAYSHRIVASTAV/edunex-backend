@@ -35,7 +35,6 @@ exports.getAnalytics = async (req, res) => {
     const highestScore = Math.round(Math.max(...percentages));
     const lowestScore = Math.round(Math.min(...percentages));
 
-    // Last 5 attempts
     const recentAttempts = quizzes.slice(0, 5).map((quiz) => ({
       score: quiz.score,
       totalQuestions: quiz.totalQuestions,
@@ -45,11 +44,8 @@ exports.getAnalytics = async (req, res) => {
       ),
     }));
 
-    // Study streak calculation
     const dates = quizzes
-      .map((quiz) =>
-        new Date(quiz.createdAt).toDateString()
-      )
+      .map((quiz) => new Date(quiz.createdAt).toDateString())
       .sort();
 
     const uniqueDates = [...new Set(dates)];
@@ -59,8 +55,7 @@ exports.getAnalytics = async (req, res) => {
 
     for (let i = uniqueDates.length - 1; i >= 0; i--) {
       const quizDate = new Date(uniqueDates[i]);
-      const diff =
-        (today - quizDate) / (1000 * 60 * 60 * 24);
+      const diff = (today - quizDate) / (1000 * 60 * 60 * 24);
 
       if (Math.floor(diff) === streak) {
         streak++;
@@ -84,7 +79,7 @@ exports.getAnalytics = async (req, res) => {
 };
 
 // ========================================
-// 📅 WEEKLY PERFORMANCE (Last 7 Days)
+// 📅 WEEKLY PERFORMANCE
 // ========================================
 exports.getWeeklyPerformance = async (req, res) => {
   try {
@@ -120,8 +115,7 @@ exports.getWeeklyPerformance = async (req, res) => {
           : Math.round(
               dailyQuizzes.reduce(
                 (acc, quiz) =>
-                  acc +
-                  (quiz.score / quiz.totalQuestions) * 100,
+                  acc + (quiz.score / quiz.totalQuestions) * 100,
                 0
               ) / quizCount
             );
@@ -141,13 +135,12 @@ exports.getWeeklyPerformance = async (req, res) => {
     });
   }
 };
-// ========================================
-//  RL LEARNING INSIGHTS
-// ========================================
 
+// ========================================
+// 🧠 RL LEARNING INSIGHTS
+// ========================================
 exports.getLearningInsights = async (req, res) => {
   try {
-
     const userId = req.user.id;
 
     const quizzes = await QuizHistory.find({
@@ -155,88 +148,102 @@ exports.getLearningInsights = async (req, res) => {
     });
 
     if (quizzes.length === 0) {
-
       return res.json({
         masteryScore: 0,
         weakTopics: [],
         strongTopics: [],
         quizCount: 0,
       });
-
     }
 
-    /* -----------------------------
-       Calculate mastery score
-    ----------------------------- */
-
     const masteryScore = Math.round(
-
       quizzes.reduce(
         (acc, quiz) =>
-          acc +
-          (quiz.score / quiz.totalQuestions) * 100,
+          acc + (quiz.score / quiz.totalQuestions) * 100,
         0
       ) / quizzes.length
-
     );
-
-    /* -----------------------------
-       Topic performance
-    ----------------------------- */
 
     const topicPerformance = {};
 
     quizzes.forEach((quiz) => {
-
-      const percent =
-        (quiz.score / quiz.totalQuestions) * 100;
+      const percent = (quiz.score / quiz.totalQuestions) * 100;
 
       if (!topicPerformance[quiz.topic]) {
-
         topicPerformance[quiz.topic] = [];
-
       }
 
       topicPerformance[quiz.topic].push(percent);
-
     });
 
     const weakTopics = [];
     const strongTopics = [];
 
     Object.keys(topicPerformance).forEach((topic) => {
-
       const scores = topicPerformance[topic];
-
       const avg =
         scores.reduce((a, b) => a + b, 0) / scores.length;
 
       if (avg < 50) weakTopics.push(topic);
-
       if (avg > 75) strongTopics.push(topic);
-
     });
 
     res.json({
-
       masteryScore,
-
       weakTopics,
-
       strongTopics,
-
       quizCount: quizzes.length,
-
     });
-
   } catch (error) {
-
     console.error("Learning Insights Error:", error);
-
     res.status(500).json({
       message: "Failed to generate insights",
     });
+  }
+};
 
+// ========================================
+// 📚 KNOWLEDGE GRAPH (SUBJECT PERFORMANCE)
+// ========================================
+exports.getKnowledgeGraph = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const quizzes = await QuizHistory.find({
+      user: userId,
+    });
+
+    const subjectScores = {};
+
+    quizzes.forEach((quiz) => {
+      if (!quiz.subject) return;
+
+      const percent =
+        (quiz.score / quiz.totalQuestions) * 100;
+
+      if (!subjectScores[quiz.subject]) {
+        subjectScores[quiz.subject] = [];
+      }
+
+      subjectScores[quiz.subject].push(percent);
+    });
+
+    const result = Object.keys(subjectScores).map(
+      (subject) => ({
+        subject,
+        averageScore: Math.round(
+          subjectScores[subject].reduce((a, b) => a + b, 0) /
+            subjectScores[subject].length
+        ),
+      })
+    );
+
+    res.json(result);
+  } catch (error) {
+    console.error("Knowledge Graph Error:", error);
+    res.status(500).json({
+      message: "Failed to fetch knowledge graph",
+    });
   }
 };
 
