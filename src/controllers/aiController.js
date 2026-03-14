@@ -44,8 +44,17 @@ const detectSubject = (text) => {
   if (
     lower.includes("english") ||
     lower.includes("grammar") ||
-    lower.includes("literature")
+    lower.includes("literature") ||
+    lower.includes("sentence") ||
+    lower.includes("story")
   ) return "English";
+
+  if (
+    lower.includes("ai") ||
+    lower.includes("artificial intelligence") ||
+    lower.includes("machine learning") ||
+    lower.includes("neural network")
+  ) return "AI";
 
   return "General";
 };
@@ -226,57 +235,44 @@ const scoreQuiz = async (req, res) => {
 
     }
 
-const subject = detectSubject(JSON.stringify(questions));
+    const subject = detectSubject(JSON.stringify(questions));
 
-const topic = questions[0]?.question || "General";
+    const topic = questions[0]?.question || "General";
 
-const cleanSubject = subject
-  ? subject.trim().toLowerCase()
-  : "general";
+    const cleanSubject = subject
+      ? subject.trim().toLowerCase()
+      : "general";
 
-const formattedSubject =
-  cleanSubject.charAt(0).toUpperCase() +
-  cleanSubject.slice(1);
+    const formattedSubject =
+      cleanSubject.charAt(0).toUpperCase() +
+      cleanSubject.slice(1);
 
-await QuizHistory.create({
-  user: req.user.id,
-  questions,
-  userAnswers,
-  score,
-  totalQuestions: questions.length,
-  difficulty,
-  subject: formattedSubject,
-  topic
-});
+    await QuizHistory.create({
+      user: req.user.id,
+      questions,
+      userAnswers,
+      score,
+      totalQuestions: questions.length,
+      difficulty,
+      subject: formattedSubject,
+      topic
+    });
 
     await UserActivity.create({
-
       user: req.user.id,
-
       type: "quiz",
-
       subject,
-
       difficulty,
-
       score,
-
       durationMinutes: 10
-
     });
 
     res.json({
-
       totalQuestions: questions.length,
-
       score,
-
       difficulty,
-
       subject,
-
       results
-
     });
 
   } catch (error) {
@@ -333,15 +329,10 @@ ${text}
     const parsed = JSON.parse(flashcardsRaw);
 
     await UserActivity.create({
-
       user: req.user.id,
-
       type: "flashcard",
-
       subject,
-
       durationMinutes: 5
-
     });
 
     res.json(parsed);
@@ -359,7 +350,7 @@ ${text}
 };
 
 /* ======================================================
-   AI CHAT (RL ADAPTIVE TUTOR)
+   AI CHAT
 ====================================================== */
 
 const aiChat = async (req, res) => {
@@ -391,14 +382,11 @@ ${message}
     const reply = await generateContent(prompt);
 
     await ChatHistory.create({
-
       user: req.user.id,
-
       messages: [
         { role: "user", content: message },
         { role: "ai", content: reply }
       ]
-
     });
 
     res.json({ reply, difficulty });
@@ -426,17 +414,14 @@ const generateStudyPlan = async (req, res) => {
     const { subject, topics, examDate, hoursPerDay } = req.body;
 
     if (!subject || !topics || !examDate || !hoursPerDay) {
-
       return res.status(400).json({
         message: "All fields required"
       });
-
     }
 
     const topicList = topics.split(",").map(t => t.trim());
 
     const today = new Date();
-
     const exam = new Date(examDate);
 
     const daysLeft = Math.max(
@@ -447,7 +432,6 @@ const generateStudyPlan = async (req, res) => {
     const generatedPlan = {};
 
     let weekNumber = 1;
-
     let dayCounter = 1;
 
     for (let i = 0; i < daysLeft; i++) {
@@ -455,49 +439,33 @@ const generateStudyPlan = async (req, res) => {
       const weekKey = `week${weekNumber}`;
 
       if (!generatedPlan[weekKey]) {
-
         generatedPlan[weekKey] = [];
-
       }
 
       const topic = topicList[i % topicList.length];
 
       generatedPlan[weekKey].push({
-
         day: `Day ${dayCounter}`,
-
         subject: topic,
-
         duration: `${hoursPerDay} hours`,
-
         focus: `Study and practice ${topic}`
-
       });
 
       dayCounter++;
 
       if (dayCounter > 7) {
-
         dayCounter = 1;
-
         weekNumber++;
-
       }
 
     }
 
     await AIStudyPlan.create({
-
       user: req.user.id,
-
       subjects: subject,
-
       examDate,
-
       hoursPerDay,
-
       generatedPlan
-
     });
 
     res.json({ generatedPlan });
@@ -515,14 +483,12 @@ const generateStudyPlan = async (req, res) => {
 };
 
 module.exports = {
-
   generateSummary,
   generateQuiz,
   generateFlashcards,
   scoreQuiz,
   aiChat,
   generateStudyPlan
-
 };
 
 
