@@ -207,11 +207,16 @@ exports.getLearningInsights = async (req, res) => {
 // ========================================
 exports.getKnowledgeGraph = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user ? req.user.id : null;
 
-    const quizzes = await QuizHistory.find({
-      user: userId,
-    });
+    // Fetch quizzes
+    const quizzes = await QuizHistory.find(
+      userId ? { user: userId } : {}
+    );
+
+    if (!quizzes || quizzes.length === 0) {
+      return res.json([]);
+    }
 
     const subjectScores = {};
 
@@ -232,8 +237,10 @@ exports.getKnowledgeGraph = async (req, res) => {
       (subject) => ({
         subject,
         averageScore: Math.round(
-          subjectScores[subject].reduce((a, b) => a + b, 0) /
-            subjectScores[subject].length
+          subjectScores[subject].reduce(
+            (a, b) => a + b,
+            0
+          ) / subjectScores[subject].length
         ),
       })
     );
@@ -246,4 +253,3 @@ exports.getKnowledgeGraph = async (req, res) => {
     });
   }
 };
-
