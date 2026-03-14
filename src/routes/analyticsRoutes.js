@@ -20,7 +20,7 @@ router.get("/weekly", authMiddleware, getWeeklyPerformance);
 router.get("/learning-insights", authMiddleware, getLearningInsights);
 
 // 📚 Knowledge Graph
-router.get("/knowledge-graph", authMiddleware, getKnowledgeGraph);  
+router.get("/knowledge-graph", getKnowledgeGraph);  
 
 module.exports = router;
 
