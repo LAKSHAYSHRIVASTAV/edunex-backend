@@ -9,22 +9,49 @@ const rlService = require("../services/rlService");
 ====================================================== */
 
 const detectSubject = (text) => {
-
   const lower = text.toLowerCase();
 
-  if (lower.includes("math") || lower.includes("algebra") || lower.includes("equation") || lower.includes("calculus"))
+  if (
+    lower.includes("math") ||
+    lower.includes("algebra") ||
+    lower.includes("equation") ||
+    lower.includes("calculus") ||
+    lower.includes("derivative")
+  )
     return "Mathematics";
 
-  if (lower.includes("physics") || lower.includes("force") || lower.includes("energy") || lower.includes("motion"))
+  if (
+    lower.includes("physics") ||
+    lower.includes("force") ||
+    lower.includes("energy") ||
+    lower.includes("motion") ||
+    lower.includes("velocity") ||
+    lower.includes("acceleration")
+  )
     return "Physics";
 
-  if (lower.includes("chemistry") || lower.includes("reaction") || lower.includes("molecule") || lower.includes("atom"))
+  if (
+    lower.includes("chemistry") ||
+    lower.includes("reaction") ||
+    lower.includes("molecule") ||
+    lower.includes("atom")
+  )
     return "Chemistry";
 
-  if (lower.includes("biology") || lower.includes("cell") || lower.includes("organism") || lower.includes("dna"))
+  if (
+    lower.includes("biology") ||
+    lower.includes("cell") ||
+    lower.includes("organism") ||
+    lower.includes("dna")
+  )
     return "Biology";
 
-  if (lower.includes("english") || lower.includes("grammar") || lower.includes("literature") || lower.includes("sentence"))
+  if (
+    lower.includes("english") ||
+    lower.includes("grammar") ||
+    lower.includes("literature") ||
+    lower.includes("sentence")
+  )
     return "English";
 
   if (
@@ -51,17 +78,14 @@ const detectSubject = (text) => {
 ====================================================== */
 
 const getAverageScore = async (userId) => {
-
   const quizzes = await QuizHistory.find({ user: userId });
 
   if (quizzes.length === 0) return 50;
 
   const totalScore = quizzes.reduce((acc, q) => acc + q.score, 0);
-
   const totalQuestions = quizzes.reduce((acc, q) => acc + q.totalQuestions, 0);
 
   return totalQuestions ? (totalScore / totalQuestions) * 100 : 50;
-
 };
 
 /* ======================================================
@@ -69,9 +93,7 @@ const getAverageScore = async (userId) => {
 ====================================================== */
 
 const generateSummary = async (req, res) => {
-
   try {
-
     const { text } = req.body;
 
     if (!text) return res.status(400).json({ message: "Text is required" });
@@ -90,14 +112,10 @@ const generateSummary = async (req, res) => {
     });
 
     res.json({ summary });
-
   } catch (error) {
-
     console.error("AI Summary Error:", error);
     res.status(500).json({ message: "AI generation failed" });
-
   }
-
 };
 
 /* ======================================================
@@ -105,9 +123,7 @@ const generateSummary = async (req, res) => {
 ====================================================== */
 
 const generateQuiz = async (req, res) => {
-
   try {
-
     const { text } = req.body;
 
     if (!text) return res.status(400).json({ message: "Text is required" });
@@ -151,16 +167,12 @@ ${text}
     res.json({
       quiz,
       difficulty,
-      subject
+      subject,
     });
-
   } catch (error) {
-
     console.error("AI Quiz Error:", error);
     res.status(500).json({ message: "AI generation failed" });
-
   }
-
 };
 
 /* ======================================================
@@ -168,9 +180,7 @@ ${text}
 ====================================================== */
 
 const scoreQuiz = async (req, res) => {
-
   try {
-
     const userId = req.user.id;
 
     const { questions, userAnswers, difficulty, subject } = req.body;
@@ -187,16 +197,13 @@ const scoreQuiz = async (req, res) => {
     });
 
     const totalQuestions = questions.length;
-
     const percentage = (score / totalQuestions) * 100;
 
-   
+    /* ---------- FIXED SUBJECT DETECTION ---------- */
 
-   /* ---------- Detect Subject ---------- */
+    const detectedSubject =
+      subject || detectSubject(questions[0]?.question || "");
 
-const detectedSubject = detectSubject(
-  questions[0]?.question || subject || ""
-);
     /* ---------- Save Quiz ---------- */
 
     const quizHistory = await QuizHistory.create({
@@ -207,7 +214,7 @@ const detectedSubject = detectSubject(
       score,
       totalQuestions,
       questions,
-      userAnswers
+      userAnswers,
     });
 
     /* ---------- Update RL Model ---------- */
@@ -218,7 +225,7 @@ const detectedSubject = detectSubject(
       userId,
       state,
       action: difficulty,
-      reward: percentage
+      reward: percentage,
     });
 
     /* ---------- Save Activity ---------- */
@@ -229,7 +236,7 @@ const detectedSubject = detectSubject(
       subject: detectedSubject,
       difficulty,
       score,
-      durationMinutes: 10
+      durationMinutes: 10,
     });
 
     res.json({
@@ -237,19 +244,15 @@ const detectedSubject = detectSubject(
       totalQuestions,
       subject: detectedSubject,
       difficulty,
-      percentage
+      percentage,
     });
-
   } catch (error) {
-
     console.error("Quiz Scoring Error:", error);
 
     res.status(500).json({
-      message: "Quiz scoring failed"
+      message: "Quiz scoring failed",
     });
-
   }
-
 };
 
 /* ======================================================
@@ -257,9 +260,7 @@ const detectedSubject = detectSubject(
 ====================================================== */
 
 const generateFlashcards = async (req, res) => {
-
   try {
-
     const { text } = req.body;
 
     if (!text) return res.status(400).json({ message: "Text required" });
@@ -293,18 +294,14 @@ ${text}
       user: req.user.id,
       type: "flashcard",
       subject,
-      durationMinutes: 5
+      durationMinutes: 5,
     });
 
     res.json(parsed);
-
   } catch (error) {
-
     console.error("Flashcards Error:", error);
     res.status(500).json({ message: "AI generation failed" });
-
   }
-
 };
 
 /* ======================================================
@@ -312,9 +309,7 @@ ${text}
 ====================================================== */
 
 const aiChat = async (req, res) => {
-
   try {
-
     const { message } = req.body;
 
     if (!message)
@@ -326,19 +321,15 @@ const aiChat = async (req, res) => {
       user: req.user.id,
       messages: [
         { role: "user", content: message },
-        { role: "ai", content: reply }
-      ]
+        { role: "ai", content: reply },
+      ],
     });
 
     res.json({ reply });
-
   } catch (error) {
-
     console.error("AI Chat Error:", error);
     res.status(500).json({ message: "AI chat failed" });
-
   }
-
 };
 
 /* ======================================================
@@ -350,5 +341,5 @@ module.exports = {
   generateQuiz,
   generateFlashcards,
   scoreQuiz,
-  aiChat
+  aiChat,
 };

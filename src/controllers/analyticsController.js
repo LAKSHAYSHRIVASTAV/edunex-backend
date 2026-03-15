@@ -46,36 +46,33 @@ exports.getAnalytics = async (req, res) => {
     }));
 
     /* ========================================
-       📚 SUBJECT PERFORMANCE DISTRIBUTION
-    ======================================== */
+      
+    /* ========================================
+   📚 SUBJECT DISTRIBUTION (QUIZ COUNT BASED)
+======================================== */
 
-    const subjectScores = {};
+const subjectCount = {};
 
-    quizzes.forEach((quiz) => {
-      const subject = quiz.subject || "General";
-      const percent = (quiz.score / quiz.totalQuestions) * 100;
+quizzes.forEach((quiz) => {
+  const subject = quiz.subject || "General";
 
-      if (!subjectScores[subject]) {
-        subjectScores[subject] = [];
-      }
+  if (!subjectCount[subject]) {
+    subjectCount[subject] = 0;
+  }
 
-      subjectScores[subject].push(percent);
-    });
+  subjectCount[subject] += 1;
+});
 
-    const subjectDistribution = Object.keys(subjectScores).map(
-      (subject) => {
-        const scores = subjectScores[subject];
-        const avg =
-          scores.reduce((a, b) => a + b, 0) / scores.length;
+const subjectDistribution = Object.keys(subjectCount).map((subject) => {
+  const count = subjectCount[subject];
 
-        return {
-          subject,
-          percentage: Math.round(avg),
-        };
-      }
-    );
+  return {
+    subject,
+    percentage: Math.round((count / totalQuizzes) * 100),
+  };
+});
 
-    subjectDistribution.sort((a, b) => b.percentage - a.percentage);
+subjectDistribution.sort((a, b) => b.percentage - a.percentage);
 
     /* ========================================
        📅 STREAK CALCULATION
