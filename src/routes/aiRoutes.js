@@ -26,7 +26,7 @@ const AIStudyPlan = require("../models/AIStudyPlan");
 router.post("/summary", authMiddleware, generateSummary);
 router.post("/quiz", authMiddleware, generateQuiz);
 router.post("/flashcards", authMiddleware, generateFlashcards);
-router.post("/quiz/score", authMiddleware, scoreQuiz);
+router.post("/score-quiz", authMiddleware, scoreQuiz);
 router.post("/chat", authMiddleware, aiChat);
 
 /* ======================================================
