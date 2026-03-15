@@ -5,10 +5,10 @@ const UserActivity = require("../models/UserActivity");
 const rlService = require("../services/rlService");
 
 /* ======================================================
-   AUTO SUBJECT DETECTION
+AUTO SUBJECT DETECTION
 ====================================================== */
 
-const detectSubject = (text) => {
+const detectSubject = (text = "") => {
   const lower = text.toLowerCase();
 
   if (
@@ -58,8 +58,7 @@ const detectSubject = (text) => {
     lower.includes("computer") ||
     lower.includes("programming") ||
     lower.includes("coding") ||
-    lower.includes("algorithm") ||
-    lower.includes("data structure")
+    lower.includes("algorithm")
   )
     return "Computer";
 
@@ -74,7 +73,7 @@ const detectSubject = (text) => {
 };
 
 /* ======================================================
-   CALCULATE USER PERFORMANCE
+CALCULATE USER PERFORMANCE
 ====================================================== */
 
 const getAverageScore = async (userId) => {
@@ -83,20 +82,24 @@ const getAverageScore = async (userId) => {
   if (quizzes.length === 0) return 50;
 
   const totalScore = quizzes.reduce((acc, q) => acc + q.score, 0);
-  const totalQuestions = quizzes.reduce((acc, q) => acc + q.totalQuestions, 0);
+  const totalQuestions = quizzes.reduce(
+    (acc, q) => acc + q.totalQuestions,
+    0
+  );
 
   return totalQuestions ? (totalScore / totalQuestions) * 100 : 50;
 };
 
 /* ======================================================
-   AI SUMMARY
+AI SUMMARY
 ====================================================== */
 
 const generateSummary = async (req, res) => {
   try {
     const { text } = req.body;
 
-    if (!text) return res.status(400).json({ message: "Text is required" });
+    if (!text)
+      return res.status(400).json({ message: "Text is required" });
 
     const subject = detectSubject(text);
 
@@ -119,14 +122,15 @@ const generateSummary = async (req, res) => {
 };
 
 /* ======================================================
-   AI QUIZ GENERATION
+AI QUIZ GENERATION
 ====================================================== */
 
 const generateQuiz = async (req, res) => {
   try {
     const { text } = req.body;
 
-    if (!text) return res.status(400).json({ message: "Text is required" });
+    if (!text)
+      return res.status(400).json({ message: "Text is required" });
 
     const subject = detectSubject(text);
 
@@ -140,14 +144,14 @@ Create a ${difficulty} level quiz.
 Return ONLY valid JSON:
 
 {
- "questions":[
-  {
-   "question":"string",
-   "options":["A","B","C","D"],
-   "correctAnswer":"exact option",
-   "explanation":"short explanation"
-  }
- ]
+"questions":[
+{
+"question":"string",
+"options":["A","B","C","D"],
+"correctAnswer":"exact option",
+"explanation":"short explanation"
+}
+]
 }
 
 Generate exactly 5 questions.
@@ -174,7 +178,7 @@ ${text}
 };
 
 /* ======================================================
-   QUIZ SCORING
+QUIZ SCORING
 ====================================================== */
 
 const scoreQuiz = async (req, res) => {
@@ -183,8 +187,9 @@ const scoreQuiz = async (req, res) => {
 
     const { questions, userAnswers, difficulty, subject } = req.body;
 
-    if (!questions || !userAnswers)
+    if (!questions || !userAnswers) {
       return res.status(400).json({ message: "Quiz data missing" });
+    }
 
     /* ---------- Calculate Score ---------- */
 
@@ -197,7 +202,7 @@ const scoreQuiz = async (req, res) => {
     const totalQuestions = questions.length;
     const percentage = (score / totalQuestions) * 100;
 
-    /* ---------- FIXED SUBJECT DETECTION ---------- */
+    /* ---------- SUBJECT DETECTION FIX ---------- */
 
     let detectedSubject = subject;
 
@@ -213,9 +218,9 @@ const scoreQuiz = async (req, res) => {
       user: userId,
       subject: detectedSubject,
       topic: detectedSubject,
-      difficulty,
       score,
       totalQuestions,
+      difficulty,
       questions,
       userAnswers,
     });
@@ -251,22 +256,20 @@ const scoreQuiz = async (req, res) => {
     });
   } catch (error) {
     console.error("Quiz Scoring Error:", error);
-
-    res.status(500).json({
-      message: "Quiz scoring failed",
-    });
+    res.status(500).json({ message: "Quiz scoring failed" });
   }
 };
 
 /* ======================================================
-   FLASHCARDS
+FLASHCARDS
 ====================================================== */
 
 const generateFlashcards = async (req, res) => {
   try {
     const { text } = req.body;
 
-    if (!text) return res.status(400).json({ message: "Text required" });
+    if (!text)
+      return res.status(400).json({ message: "Text required" });
 
     const subject = detectSubject(text);
 
@@ -276,9 +279,9 @@ Create flashcards.
 Return JSON:
 
 {
- "flashcards":[
-  {"question":"string","answer":"string"}
- ]
+"flashcards":[
+{"question":"string","answer":"string"}
+]
 }
 
 Generate exactly 5 flashcards.
@@ -308,7 +311,7 @@ ${text}
 };
 
 /* ======================================================
-   AI CHAT
+AI CHAT
 ====================================================== */
 
 const aiChat = async (req, res) => {
@@ -334,10 +337,6 @@ const aiChat = async (req, res) => {
     res.status(500).json({ message: "AI chat failed" });
   }
 };
-
-/* ======================================================
-   EXPORTS
-====================================================== */
 
 module.exports = {
   generateSummary,
