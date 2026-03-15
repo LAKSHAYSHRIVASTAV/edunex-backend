@@ -137,17 +137,16 @@ exports.getWeeklyPerformance = async (req, res) => {
 };
 
 /* ========================================
+   /* ========================================
    🧠 AI LEARNING INSIGHTS
 ======================================== */
 exports.getLearningInsights = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const quizzes = await QuizHistory.find({
-      user: userId,
-    });
+    const quizzes = await QuizHistory.find({ user: userId });
 
-    if (quizzes.length === 0) {
+    if (!quizzes || quizzes.length === 0) {
       return res.json({
         masteryScore: 0,
         weakTopics: [],
@@ -156,21 +155,17 @@ exports.getLearningInsights = async (req, res) => {
       });
     }
 
-    const masteryScore = Math.round(
-      quizzes.reduce(
-        (acc, quiz) =>
-          acc + (quiz.score / quiz.totalQuestions) * 100,
-        0
-      ) / quizzes.length
-    );
+    let totalPercent = 0;
 
     const topicPerformance = {};
 
     quizzes.forEach((quiz) => {
-      const topic = quiz.topic || "General";
 
-      const percent =
-        (quiz.score / quiz.totalQuestions) * 100;
+      const percent = (quiz.score / quiz.totalQuestions) * 100;
+
+      totalPercent += percent;
+
+      const topic = quiz.topic || quiz.subject || "General";
 
       if (!topicPerformance[topic]) {
         topicPerformance[topic] = [];
@@ -179,25 +174,30 @@ exports.getLearningInsights = async (req, res) => {
       topicPerformance[topic].push(percent);
     });
 
+    const masteryScore = Math.round(totalPercent / quizzes.length);
+
     const weakTopics = [];
     const strongTopics = [];
 
     Object.keys(topicPerformance).forEach((topic) => {
+
       const scores = topicPerformance[topic];
 
       const avg =
         scores.reduce((a, b) => a + b, 0) / scores.length;
 
       if (avg < 50) weakTopics.push(topic);
+
       if (avg >= 75) strongTopics.push(topic);
     });
 
     res.json({
       masteryScore,
-      weakTopics,
-      strongTopics,
+      weakTopics: weakTopics.slice(0, 3),
+      strongTopics: strongTopics.slice(0, 3),
       quizCount: quizzes.length,
     });
+
   } catch (error) {
     console.error("Learning Insights Error:", error);
     res.status(500).json({

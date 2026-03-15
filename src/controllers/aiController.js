@@ -238,8 +238,6 @@ const scoreQuiz = async (req, res) => {
     const detectedSubject =
       subject || detectSubject(JSON.stringify(questions));
 
-    const topic = questions[0]?.question || "General";
-
     const cleanSubject = detectedSubject
       ? detectedSubject.trim().toLowerCase()
       : "general";
@@ -247,6 +245,9 @@ const scoreQuiz = async (req, res) => {
     const formattedSubject =
       cleanSubject.charAt(0).toUpperCase() +
       cleanSubject.slice(1);
+
+    // FIXED TOPIC (avoids long question text in analytics)
+    const topic = formattedSubject;
 
     await QuizHistory.create({
       user: req.user.id,
@@ -257,6 +258,21 @@ const scoreQuiz = async (req, res) => {
       difficulty,
       subject: formattedSubject,
       topic
+    });
+
+    /* ==========================================
+       RL LEARNING UPDATE
+    ========================================== */
+
+    const percentage = (score / questions.length) * 100;
+
+    const state = rlService.getState(percentage);
+
+    await rlService.updateUserPerformance({
+      userId: req.user.id,
+      state,
+      action: difficulty,
+      reward: percentage
     });
 
     await UserActivity.create({
@@ -349,6 +365,7 @@ ${text}
   }
 
 };
+
 /* ======================================================
    AI CHAT
 ====================================================== */
@@ -397,8 +414,7 @@ module.exports = {
   generateSummary,
   generateQuiz,
   generateFlashcards,
-  scoreQuiz,  
+  scoreQuiz,
   aiChat,
 };
-
 

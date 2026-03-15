@@ -143,20 +143,20 @@ exports.getRecommendation = async (req, res) => {
 
     let rlSuggestion = "";
 
-    if (action === "easy_quiz") {
-      rlSuggestion =
-        " RL Suggestion: Practice more EASY quizzes to strengthen fundamentals.";
-    }
+    if (action === "easy") {
+  rlSuggestion =
+    " RL Suggestion: Practice more EASY quizzes to strengthen fundamentals.";
+}
 
-    if (action === "medium_quiz") {
-      rlSuggestion =
-        " RL Suggestion: Move to MEDIUM quizzes to improve understanding.";
-    }
+if (action === "medium") {
+  rlSuggestion =
+    " RL Suggestion: Move to MEDIUM quizzes to improve understanding.";
+}
 
-    if (action === "hard_quiz") {
-      rlSuggestion =
-        " RL Suggestion: Challenge yourself with HARD quizzes.";
-    }
+if (action === "hard") {
+  rlSuggestion =
+    " RL Suggestion: Challenge yourself with HARD quizzes.";
+}
 
     recommendation += rlSuggestion;
 
