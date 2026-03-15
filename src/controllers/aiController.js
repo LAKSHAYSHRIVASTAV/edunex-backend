@@ -131,9 +131,7 @@ const generateQuiz = async (req, res) => {
     const subject = detectSubject(text);
 
     const avgScore = await getAverageScore(req.user.id);
-
     const state = rlService.getState(avgScore);
-
     const difficulty = await rlService.chooseAction(req.user.id, state);
 
     const prompt = `
@@ -201,8 +199,13 @@ const scoreQuiz = async (req, res) => {
 
     /* ---------- FIXED SUBJECT DETECTION ---------- */
 
-    const detectedSubject =
-      subject || detectSubject(questions[0]?.question || "");
+    let detectedSubject = subject;
+
+    if (!detectedSubject || detectedSubject.toLowerCase() === "general") {
+      detectedSubject = detectSubject(
+        questions.map((q) => q.question).join(" ")
+      );
+    }
 
     /* ---------- Save Quiz ---------- */
 
