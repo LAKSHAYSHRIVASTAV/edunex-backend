@@ -3,31 +3,15 @@ const QuizHistory = require("../models/QuizHistory");
 const rlService = require("../services/rlService");
 
 exports.getDashboardData = async (req, res) => {
+
   try {
+
     const userId = req.user.id;
 
     const activities = await UserActivity.find({ user: userId });
 
-    const quizzes = await QuizHistory.find({ user: userId });
-
-    if (!activities.length) {
-      return res.json({
-        readingProgress: 0,
-        quizCompletion: 0,
-        flashcardsReviewed: 0,
-        weeklyStudyHours: 0,
-        weeklyActivity: [],
-        subjectDistribution: [],
-        studyStreak: 0,
-        totalHours: 0,
-        avgDailyHours: 0,
-        aiInsights: {
-          learningState: "unknown",
-          recommendedDifficulty: "medium_quiz",
-          weakestTopic: null
-        }
-      });
-    }
+    const quizzes = await QuizHistory.find({ user: userId })
+      .select("subject topic score totalQuestions createdAt");
 
     // ----------------------------
     // Reading Progress
@@ -43,19 +27,21 @@ exports.getDashboardData = async (req, res) => {
     // Quiz Completion %
     // ----------------------------
 
-    const quizActivities = activities.filter(
-      (a) => a.type === "quiz"
-    );
+    let quizCompletion = 0;
 
-    const avgScore =
-      quizActivities.length > 0
-        ? quizActivities.reduce(
-            (acc, q) => acc + (q.score || 0),
-            0
-          ) / quizActivities.length
-        : 0;
+    if (quizzes.length > 0) {
 
-    const quizCompletion = Math.round((avgScore / 5) * 100);
+      const avgScore =
+        quizzes.reduce(
+          (acc, q) =>
+            acc +
+            (q.score / q.totalQuestions) * 100,
+          0
+        ) / quizzes.length;
+
+      quizCompletion = Math.round(avgScore);
+
+    }
 
     // ----------------------------
     // Flashcards Reviewed
@@ -118,23 +104,23 @@ exports.getDashboardData = async (req, res) => {
 
     const subjectMap = {};
 
-    activities.forEach((a) => {
+    quizzes.forEach((quiz) => {
 
-      const subject = a.subject || "General";
+      const subject = quiz.subject || "General";
 
       subjectMap[subject] =
         (subjectMap[subject] || 0) + 1;
 
     });
 
-    const totalActivities = activities.length;
+    const totalQuizzes = quizzes.length || 1;
 
     const subjectDistribution = Object.entries(
       subjectMap
     ).map(([subject, count]) => ({
       subject,
       count: Math.round(
-        (count / totalActivities) * 100
+        (count / totalQuizzes) * 100
       ),
     }));
 
@@ -210,14 +196,17 @@ exports.getDashboardData = async (req, res) => {
 
       quizzes.forEach((quiz) => {
 
+        const topic =
+          quiz.topic || quiz.subject || "General";
+
         const percent =
           (quiz.score / quiz.totalQuestions) * 100;
 
-        if (!topicPerformance[quiz.topic]) {
-          topicPerformance[quiz.topic] = [];
+        if (!topicPerformance[topic]) {
+          topicPerformance[topic] = [];
         }
 
-        topicPerformance[quiz.topic].push(percent);
+        topicPerformance[topic].push(percent);
 
       });
 
@@ -256,14 +245,20 @@ exports.getDashboardData = async (req, res) => {
     // -------------------------------------------------
 
     res.json({
+
       readingProgress,
       quizCompletion,
       flashcardsReviewed,
+
       weeklyStudyHours,
       weeklyActivity,
+
       subjectDistribution,
+
       studyStreak: streak,
+
       totalHours,
+
       avgDailyHours: +avgDailyHours.toFixed(1),
 
       aiInsights: {
@@ -271,6 +266,7 @@ exports.getDashboardData = async (req, res) => {
         recommendedDifficulty,
         weakestTopic
       }
+
     });
 
   } catch (error) {
@@ -282,5 +278,6 @@ exports.getDashboardData = async (req, res) => {
       .json({ message: "Dashboard data error" });
 
   }
+
 };
 

@@ -5,12 +5,13 @@ const cors = require("cors");
 require("dotenv").config();
 
 const connectDB = require("./config/db");
+
 const authRoutes = require("./routes/authRoutes");
 const protectedRoutes = require("./routes/protectedRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const goalRoutes = require("./routes/goalRoutes");
-const recommendationRoutes = require("./routes/recommendationRoutes"); 
+const recommendationRoutes = require("./routes/recommendationRoutes");
 const leaderboardRoutes = require("./routes/leaderboardRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
@@ -23,30 +24,47 @@ const rlRoutes = require("./routes/rlRoutes");
 const progressRoutes = require("./routes/progressRoutes");
 const knowledgeGraphRoutes = require("./routes/knowledgeGraphRoutes");
 
-
-
-
 const app = express();
 
+// --------------------
 // Middleware
-app.use(cors());
+// --------------------
+
+app.use(
+  cors({
+    origin: "*",
+    credentials: true
+  })
+);
+
 app.use(express.json());
 
-// Health check
+// --------------------
+// Health Check Route
+// --------------------
+
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "Backend is running successfully" });
+  res.status(200).json({
+    status: "Backend is running successfully"
+  });
 });
 
-// Connect DB FIRST
+// --------------------
+// Connect Database
+// --------------------
+
 connectDB();
 
-// Routes
+// --------------------
+// API Routes
+// --------------------
+
 app.use("/api/auth", authRoutes);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/goals", goalRoutes);
-app.use("/api/recommendation", recommendationRoutes); 
+app.use("/api/recommendation", recommendationRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/dashboard", dashboardRoutes);
@@ -59,12 +77,26 @@ app.use("/api/rl", rlRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/knowledge-graph", knowledgeGraphRoutes);
 
+// --------------------
+// Global Error Handler
+// --------------------
+
+app.use((err, req, res, next) => {
+  console.error("Server Error:", err);
+
+  res.status(500).json({
+    message: "Internal server error"
+  });
+});
+
+// --------------------
+// Start Server
+// --------------------
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
-
 
 
