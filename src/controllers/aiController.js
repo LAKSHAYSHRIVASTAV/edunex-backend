@@ -27,7 +27,20 @@ const detectSubject = (text) => {
   if (lower.includes("english") || lower.includes("grammar") || lower.includes("literature") || lower.includes("sentence"))
     return "English";
 
-  if (lower.includes("ai") || lower.includes("machine learning") || lower.includes("neural network"))
+  if (
+    lower.includes("computer") ||
+    lower.includes("programming") ||
+    lower.includes("coding") ||
+    lower.includes("algorithm") ||
+    lower.includes("data structure")
+  )
+    return "Computer";
+
+  if (
+    lower.includes("ai") ||
+    lower.includes("machine learning") ||
+    lower.includes("neural network")
+  )
     return "AI";
 
   return "General";
@@ -177,10 +190,13 @@ const scoreQuiz = async (req, res) => {
 
     const percentage = (score / totalQuestions) * 100;
 
-    /* ---------- Detect Subject ---------- */
+   
 
-    const detectedSubject = subject || "General";
+   /* ---------- Detect Subject ---------- */
 
+const detectedSubject = detectSubject(
+  questions[0]?.question || subject || ""
+);
     /* ---------- Save Quiz ---------- */
 
     const quizHistory = await QuizHistory.create({
