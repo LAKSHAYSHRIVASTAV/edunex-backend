@@ -193,6 +193,7 @@ exports.getProgressOverview = async (req, res) => {
         totalHours: 0,
         avgDaily: 0,
         subjectDistribution: [],
+        streak: 0,
       });
     }
 
@@ -211,7 +212,8 @@ exports.getProgressOverview = async (req, res) => {
     const subjectMap = {};
 
     activities.forEach((activity) => {
-      totalMinutes += activity.durationMinutes;
+      const minutes = activity.durationMinutes || 0;
+      totalMinutes += minutes;
 
       const subject = activity.subject || "General";
 
@@ -226,7 +228,7 @@ exports.getProgressOverview = async (req, res) => {
         { weekday: "short" }
       );
 
-      weeklyHours[day] += activity.durationMinutes;
+      weeklyHours[day] += minutes;
     });
 
     const totalHours = (totalMinutes / 60).toFixed(1);
@@ -242,11 +244,39 @@ exports.getProgressOverview = async (req, res) => {
       })
     );
 
+    /* ========================================
+       🔥 STUDY STREAK CALCULATION
+    ======================================== */
+
+    const activityDates = activities
+      .map((a) => new Date(a.createdAt).toDateString())
+      .sort();
+
+    const uniqueDates = [...new Set(activityDates)];
+
+    let streak = 0;
+    const today = new Date();
+
+    for (let i = uniqueDates.length - 1; i >= 0; i--) {
+      const studyDate = new Date(uniqueDates[i]);
+
+      const diffDays = Math.floor(
+        (today - studyDate) / (1000 * 60 * 60 * 24)
+      );
+
+      if (diffDays === streak) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
     res.json({
       weeklyHours,
       totalHours,
       avgDaily,
       subjectDistribution,
+      streak,
     });
   } catch (error) {
     console.error("Progress Overview Error:", error);
@@ -333,6 +363,7 @@ exports.getKnowledgeGraph = async (req, res) => {
       return res.json({
         labels: [],
         scores: [],
+        colors: [],
       });
     }
 
@@ -351,6 +382,19 @@ exports.getKnowledgeGraph = async (req, res) => {
 
     const labels = [];
     const scores = [];
+    const colors = [];
+
+    /* ========================================
+       SUBJECT COLOR MAP
+    ======================================== */
+
+    const subjectColors = {
+      Physics: "#6366F1",
+      Mathematics: "#8B5CF6",
+      English: "#22C55E",
+      Computer: "#3B82F6",
+      General: "#F59E0B",
+    };
 
     Object.keys(subjectScores).forEach((subject) => {
       labels.push(subject);
@@ -360,11 +404,15 @@ exports.getKnowledgeGraph = async (req, res) => {
         subjectScores[subject].length;
 
       scores.push(Math.round(avg));
+
+      // Assign color
+      colors.push(subjectColors[subject] || "#94A3B8");
     });
 
     res.json({
       labels,
       scores,
+      colors,
     });
   } catch (error) {
     console.error("Knowledge Graph Error:", error);
