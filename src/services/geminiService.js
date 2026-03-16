@@ -1,6 +1,6 @@
 const fetch = require("node-fetch");
 
-const BASE_URL = "https://generativelanguage.googleapis.com/v1";
+const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const API_KEY = process.env.GEMINI_API_KEY;
 
 if (!API_KEY) {
