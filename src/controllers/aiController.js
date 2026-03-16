@@ -237,15 +237,16 @@ const scoreQuiz = async (req, res) => {
 
     /* ---------- Update RL Model ---------- */
 
-    const state = rlService.getState(percentage);
+   const state = rlService.getState(percentage);
 
-    await rlService.updateUserPerformance({
-      userId,
-      state,
-      action: difficulty,
-      reward: percentage,
-    });
+const action = difficulty.replace("_quiz", "");
 
+await rlService.updateQValue(
+  userId,
+  state,
+  action,
+  percentage
+);
     /* ---------- Save Activity ---------- */
 
     await UserActivity.create({
