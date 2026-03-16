@@ -139,7 +139,7 @@ const generateQuiz = async (req, res) => {
     const difficulty = await rlService.chooseAction(req.user.id, state);
 
     const prompt = `
-Create a ${difficulty} level quiz.
+Create a ${difficulty} level ${subject} quiz.
 
 Return ONLY valid JSON:
 
@@ -167,7 +167,7 @@ ${text}
     const quiz = JSON.parse(quizRaw);
 
     res.json({
-      quiz,
+      quiz: quiz.questions,
       difficulty,
       subject,
     });
@@ -196,25 +196,35 @@ const scoreQuiz = async (req, res) => {
     let score = 0;
 
     questions.forEach((q, i) => {
-      if (q.correctAnswer === userAnswers[i]) score++;
+
+      const correctLetter = q.correctAnswer.charAt(0).toUpperCase();
+      const userLetter = userAnswers[i]?.toUpperCase();
+
+      if (correctLetter === userLetter) {
+        score++;
+      }
+
     });
 
     const totalQuestions = questions.length;
     const percentage = (score / totalQuestions) * 100;
 
-    /* ---------- SUBJECT DETECTION FIX ---------- */
+    /* ---------- FIX SUBJECT ISSUE ---------- */
 
     let detectedSubject = subject;
 
-    if (!detectedSubject || detectedSubject.toLowerCase() === "general") {
-      detectedSubject = detectSubject(
-        questions.map((q) => q.question).join(" ")
-      );
+    if (!detectedSubject || detectedSubject === "General") {
+
+      const combinedText = questions
+        .map((q) => q.question + " " + q.options.join(" "))
+        .join(" ");
+
+      detectedSubject = detectSubject(combinedText);
     }
 
     /* ---------- Save Quiz ---------- */
 
-    const quizHistory = await QuizHistory.create({
+    await QuizHistory.create({
       user: userId,
       subject: detectedSubject,
       topic: detectedSubject,
@@ -254,6 +264,7 @@ const scoreQuiz = async (req, res) => {
       difficulty,
       percentage,
     });
+
   } catch (error) {
     console.error("Quiz Scoring Error:", error);
     res.status(500).json({ message: "Quiz scoring failed" });
