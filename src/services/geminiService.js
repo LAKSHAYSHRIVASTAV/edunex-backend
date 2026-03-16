@@ -1,23 +1,34 @@
 const fetch = require("node-fetch");
 
-const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+const BASE_URL = "https://generativelanguage.googleapis.com/v1";
 const API_KEY = process.env.GEMINI_API_KEY;
 
-const MODEL = "models/gemini-1.5-flash-latest";
+if (!API_KEY) {
+  throw new Error("GEMINI_API_KEY is not set in environment variables");
+}
+
+const MODEL = "models/gemini-1.5-flash";
 
 /* ======================================================
    GENERATE CONTENT
 ====================================================== */
 async function generateContent(prompt) {
+prompt = (prompt || "").slice(0, 8000);
   try {
 
     const res = await fetch(
       `${BASE_URL}/${MODEL}:generateContent?key=${API_KEY}`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
+          contents: [
+            {
+              parts: [{ text: prompt }]
+            }
+          ]
         })
       }
     );
@@ -27,18 +38,21 @@ async function generateContent(prompt) {
     if (!res.ok) {
       console.error("Gemini Error:", data);
 
-      // Handle rate limit gracefully
       if (data.error?.code === 429) {
         throw new Error("Gemini rate limit reached. Please wait a few seconds.");
       }
 
-      throw new Error("Gemini generateContent failed");
+      throw new Error(data.error?.message || "Gemini generateContent failed");
     }
 
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
+    if (!data.candidates || !data.candidates.length) {
+      throw new Error("Gemini returned empty response");
+    }
+
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "No AI response";
 
   } catch (error) {
-    console.error("AI Service Error:", error);
+    console.error("AI Service Error:", error.message);
     throw error;
   }
 }
@@ -91,6 +105,5 @@ module.exports = {
   generateContent,
   generateSmartStudyPlan
 };
-
 
 
