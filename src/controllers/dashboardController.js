@@ -8,7 +8,7 @@ exports.getDashboardData = async (req, res) => {
 
     const userId = req.user.id;
 
-    const activities = await UserActivity.find({ user: userId });
+   const activities = await UserActivity.find({ user: userId }).sort({ createdAt: -1 });
 
     const quizzes = await QuizHistory.find({ user: userId })
       .select("subject topic score totalQuestions createdAt");
@@ -128,35 +128,33 @@ exports.getDashboardData = async (req, res) => {
     // Study Streak
     // ----------------------------
 
-    const activityDates = [
-      ...new Set(
-        activities.map((a) =>
-          new Date(a.createdAt).toDateString()
-        )
-      ),
-    ];
+const activityDates = [
+  ...new Set(
+    activities.map((a) =>
+      new Date(a.createdAt).toISOString().split("T")[0]
+    )
+  ),
+];
 
-    let streak = 0;
+let streak = 0;
 
-    const today = new Date();
+const today = new Date();
 
-    for (let i = 0; i < 365; i++) {
+for (let i = 0; i < 365; i++) {
 
-      const checkDate = new Date();
+  const checkDate = new Date();
+  checkDate.setDate(today.getDate() - i);
 
-      checkDate.setDate(today.getDate() - i);
+  const formattedDate =
+    checkDate.toISOString().split("T")[0];
 
-      if (
-        activityDates.includes(
-          checkDate.toDateString()
-        )
-      ) {
-        streak++;
-      } else {
-        break;
-      }
+  if (activityDates.includes(formattedDate)) {
+    streak++;
+  } else {
+    break;
+  }
 
-    }
+}
 
     const avgDailyHours =
       weeklyActivity.reduce(
