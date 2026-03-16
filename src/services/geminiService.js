@@ -3,7 +3,7 @@ const fetch = require("node-fetch");
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const API_KEY = process.env.GEMINI_API_KEY;
 
-const MODEL = "models/gemini-1.5-flash";
+const MODEL = "models/gemini-1.5-flash-latest";
 
 /* ======================================================
    GENERATE CONTENT
