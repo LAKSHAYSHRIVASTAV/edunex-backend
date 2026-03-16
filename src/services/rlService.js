@@ -65,6 +65,8 @@ const chooseAction = async (userId, state) => {
 };
 
 
+
+
 /* ===============================
    Q LEARNING UPDATE
 ================================ */
@@ -75,7 +77,13 @@ const updateQValue = async (userId, state, action, reward) => {
 
   if (!userState) return;
 
-  const currentQ = userState.qTable[state][action];
+  // Ensure action exists
+  if (!actions.includes(action)) {
+    console.log("Invalid RL action:", action);
+    return;
+  }
+
+  const currentQ = userState.qTable[state][action] ?? 0;
 
   const maxFuture = Math.max(
     ...Object.values(userState.qTable[state])
@@ -85,12 +93,11 @@ const updateQValue = async (userId, state, action, reward) => {
     currentQ +
     alpha * (reward + gamma * maxFuture - currentQ);
 
-  userState.qTable[state][action] = newQ;
+  userState.qTable[state][action] = Number(newQ);
 
   await userState.save();
 
 };
-
 
 module.exports = {
 
