@@ -3,54 +3,44 @@ const fetch = require("node-fetch");
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const API_KEY = process.env.GEMINI_API_KEY;
 
-/* ======================================================
-   LIST AVAILABLE MODELS
-====================================================== */
-async function listModels() {
-  const res = await fetch(`${BASE_URL}/models?key=${API_KEY}`);
-  const data = await res.json();
-
-  if (!res.ok) {
-    console.error("ListModels Error:", data);
-    throw new Error("Failed to list models");
-  }
-
-  return data.models;
-}
+const MODEL = "models/gemini-1.5-flash";
 
 /* ======================================================
-   GENERATE CONTENT (GENERIC)
+   GENERATE CONTENT
 ====================================================== */
 async function generateContent(prompt) {
-  const models = await listModels();
+  try {
 
-  const model = models.find(m =>
-    m.supportedGenerationMethods?.includes("generateContent")
-  );
+    const res = await fetch(
+      `${BASE_URL}/${MODEL}:generateContent?key=${API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      }
+    );
 
-  if (!model) {
-    throw new Error("No supported Gemini model found for this API key");
-  }
+    const data = await res.json();
 
-  const res = await fetch(
-    `${BASE_URL}/${model.name}:generateContent?key=${API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-      }),
+    if (!res.ok) {
+      console.error("Gemini Error:", data);
+
+      // Handle rate limit gracefully
+      if (data.error?.code === 429) {
+        throw new Error("Gemini rate limit reached. Please wait a few seconds.");
+      }
+
+      throw new Error("Gemini generateContent failed");
     }
-  );
 
-  const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
 
-  if (!res.ok) {
-    console.error("GenerateContent Error:", data);
-    throw new Error("Gemini generateContent failed");
+  } catch (error) {
+    console.error("AI Service Error:", error);
+    throw error;
   }
-
-  return data.candidates[0].content.parts[0].text;
 }
 
 /* ======================================================
@@ -99,10 +89,8 @@ Required Format:
 
 module.exports = {
   generateContent,
-  generateSmartStudyPlan,
+  generateSmartStudyPlan
 };
-
-
 
 
 
