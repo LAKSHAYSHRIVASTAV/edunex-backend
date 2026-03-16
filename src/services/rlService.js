@@ -77,23 +77,31 @@ const updateQValue = async (userId, state, action, reward) => {
 
   if (!userState) return;
 
-  // Ensure action exists
   if (!actions.includes(action)) {
     console.log("Invalid RL action:", action);
     return;
   }
 
-  const currentQ = userState.qTable[state][action] ?? 0;
+  // Ensure numbers
+  const currentQ = Number(userState.qTable[state]?.[action] ?? 0);
 
-  const maxFuture = Math.max(
-    ...Object.values(userState.qTable[state])
-  );
+  const futureValues = Object.values(userState.qTable[state] || {}).map(v => Number(v) || 0);
 
-  const newQ =
+  const maxFuture = Math.max(...futureValues);
+
+  const safeReward = Number(reward) || 0;
+
+  let newQ =
     currentQ +
-    alpha * (reward + gamma * maxFuture - currentQ);
+    alpha * (safeReward + gamma * maxFuture - currentQ);
 
-  userState.qTable[state][action] = Number(newQ);
+  // Prevent NaN crash
+  if (isNaN(newQ)) {
+    console.log("⚠ RL produced NaN. Resetting value.");
+    newQ = 0;
+  }
+
+  userState.qTable[state][action] = newQ;
 
   await userState.save();
 
