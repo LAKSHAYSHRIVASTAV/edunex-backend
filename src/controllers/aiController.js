@@ -197,14 +197,20 @@ const scoreQuiz = async (req, res) => {
 
     questions.forEach((q, i) => {
 
-      const correctLetter = q.correctAnswer.charAt(0).toUpperCase();
-      const userLetter = userAnswers[i]?.toUpperCase();
+  const correct = q.correctAnswer.trim();
+  const user = userAnswers[i];
 
-      if (correctLetter === userLetter) {
-        score++;
-      }
+  if (!user) return;
 
-    });
+  // Match either full option OR letter
+  if (
+    correct === user ||
+    correct.startsWith(user)
+  ) {
+    score++;
+  }
+
+});
 
     const totalQuestions = questions.length;
     const percentage = (score / totalQuestions) * 100;
