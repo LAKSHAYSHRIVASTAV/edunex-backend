@@ -1,4 +1,5 @@
 const QuizHistory = require("../models/QuizHistory");
+const UserActivity = require("../models/UserActivity");
 
 /* ========================================
    📊 MAIN ANALYTICS CONTROLLER
@@ -46,33 +47,31 @@ exports.getAnalytics = async (req, res) => {
     }));
 
     /* ========================================
-      
-    /* ========================================
-   📚 SUBJECT DISTRIBUTION (QUIZ COUNT BASED)
-======================================== */
+       📚 SUBJECT DISTRIBUTION
+    ======================================== */
 
-const subjectCount = {};
+    const subjectCount = {};
 
-quizzes.forEach((quiz) => {
-  const subject = quiz.subject || "General";
+    quizzes.forEach((quiz) => {
+      const subject = quiz.subject || "General";
 
-  if (!subjectCount[subject]) {
-    subjectCount[subject] = 0;
-  }
+      if (!subjectCount[subject]) {
+        subjectCount[subject] = 0;
+      }
 
-  subjectCount[subject] += 1;
-});
+      subjectCount[subject] += 1;
+    });
 
-const subjectDistribution = Object.keys(subjectCount).map((subject) => {
-  const count = subjectCount[subject];
+    const subjectDistribution = Object.keys(subjectCount).map(
+      (subject) => ({
+        subject,
+        percentage: Math.round(
+          (subjectCount[subject] / totalQuizzes) * 100
+        ),
+      })
+    );
 
-  return {
-    subject,
-    percentage: Math.round((count / totalQuizzes) * 100),
-  };
-});
-
-subjectDistribution.sort((a, b) => b.percentage - a.percentage);
+    subjectDistribution.sort((a, b) => b.percentage - a.percentage);
 
     /* ========================================
        📅 STREAK CALCULATION
@@ -172,6 +171,93 @@ exports.getWeeklyPerformance = async (req, res) => {
 };
 
 /* ========================================
+   📊 PROGRESS OVERVIEW (DASHBOARD)
+======================================== */
+exports.getProgressOverview = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const activities = await UserActivity.find({ user: userId });
+
+    if (!activities || activities.length === 0) {
+      return res.json({
+        weeklyHours: {
+          Mon: 0,
+          Tue: 0,
+          Wed: 0,
+          Thu: 0,
+          Fri: 0,
+          Sat: 0,
+          Sun: 0,
+        },
+        totalHours: 0,
+        avgDaily: 0,
+        subjectDistribution: [],
+      });
+    }
+
+    let totalMinutes = 0;
+
+    const weeklyHours = {
+      Mon: 0,
+      Tue: 0,
+      Wed: 0,
+      Thu: 0,
+      Fri: 0,
+      Sat: 0,
+      Sun: 0,
+    };
+
+    const subjectMap = {};
+
+    activities.forEach((activity) => {
+      totalMinutes += activity.durationMinutes;
+
+      const subject = activity.subject || "General";
+
+      if (!subjectMap[subject]) {
+        subjectMap[subject] = 0;
+      }
+
+      subjectMap[subject]++;
+
+      const day = new Date(activity.createdAt).toLocaleString(
+        "en-US",
+        { weekday: "short" }
+      );
+
+      weeklyHours[day] += activity.durationMinutes;
+    });
+
+    const totalHours = (totalMinutes / 60).toFixed(1);
+
+    const avgDaily = (totalMinutes / 7 / 60).toFixed(1);
+
+    const subjectDistribution = Object.keys(subjectMap).map(
+      (subject) => ({
+        subject,
+        percentage: Math.round(
+          (subjectMap[subject] / activities.length) * 100
+        ),
+      })
+    );
+
+    res.json({
+      weeklyHours,
+      totalHours,
+      avgDaily,
+      subjectDistribution,
+    });
+  } catch (error) {
+    console.error("Progress Overview Error:", error);
+
+    res.status(500).json({
+      message: "Failed to fetch progress overview",
+    });
+  }
+};
+
+/* ========================================
    🧠 AI LEARNING INSIGHTS
 ======================================== */
 exports.getLearningInsights = async (req, res) => {
@@ -190,7 +276,6 @@ exports.getLearningInsights = async (req, res) => {
     }
 
     let totalPercent = 0;
-
     const topicPerformance = {};
 
     quizzes.forEach((quiz) => {
@@ -236,7 +321,7 @@ exports.getLearningInsights = async (req, res) => {
 };
 
 /* ========================================
-   📚 KNOWLEDGE GRAPH (SUBJECT PERFORMANCE)
+   📚 KNOWLEDGE GRAPH
 ======================================== */
 exports.getKnowledgeGraph = async (req, res) => {
   try {
