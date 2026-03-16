@@ -7,7 +7,7 @@ if (!API_KEY) {
   throw new Error("GEMINI_API_KEY is not set in environment variables");
 }
 
-const MODEL = "models/gemini-pro";
+const MODEL = "models/gemini-1.5-flash";
 
 /* ======================================================
    GENERATE CONTENT
