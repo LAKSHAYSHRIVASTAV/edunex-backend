@@ -403,7 +403,11 @@ exports.getKnowledgeGraph = async (req, res) => {
         subjectScores[subject].reduce((a, b) => a + b, 0) /
         subjectScores[subject].length;
 
-      scores.push(Math.round(avg));
+      const rounded = Math.round(avg);
+
+  // ensure minimum visible bar
+  scores.push(rounded === 0 ? 1 : rounded);
+
 
       // Assign color
       colors.push(subjectColors[subject] || "#94A3B8");
