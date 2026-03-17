@@ -20,6 +20,29 @@ const userSchema = new Schema(
       type: String,
       required: true,
     },
+
+    /* 🔥 NEW FIELDS (XP SYSTEM) */
+
+    xp: {
+      type: Number,
+      default: 0,
+    },
+    level: {
+      type: Number,
+      default: 1,
+    },
+    streak: {
+      type: Number,
+      default: 0,
+    },
+    lastActive: {
+      type: Date,
+      default: null,
+    },
+    lastRewardDate: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

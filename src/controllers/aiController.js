@@ -3,6 +3,7 @@ const { generateContent } = require("../services/geminiService");
 const QuizHistory = require("../models/QuizHistory");
 const UserActivity = require("../models/UserActivity");
 const rlService = require("../services/rlService");
+const { updateUserProgress } = require("../services/progressService");
 
 /* ======================================================
    SAFE JSON PARSER (GLOBAL FIX)
@@ -287,6 +288,7 @@ const aiChat = async (req, res) => {
 
     const reply = await generateContent(message);
 
+    /* 💾 SAVE CHAT */
     await ChatHistory.create({
       user: req.user.id,
       messages: [
@@ -295,14 +297,20 @@ const aiChat = async (req, res) => {
       ],
     });
 
-    res.json({ reply });
+    /* 🔥 UPDATE USER PROGRESS (XP + LEVEL + STREAK) */
+    const progress = await updateUserProgress(req.user.id);
+
+    /* ✅ FINAL RESPONSE */
+    res.json({
+      reply,
+      progress,
+    });
 
   } catch (error) {
     console.error("AI Chat Error:", error);
     res.status(500).json({ message: "AI chat failed" });
   }
 };
-
 module.exports = {
   generateSummary,
   generateQuiz,
