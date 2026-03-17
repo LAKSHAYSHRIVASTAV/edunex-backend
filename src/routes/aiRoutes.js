@@ -53,36 +53,20 @@ router.post("/generate-plan", authMiddleware, async (req, res) => {
 
     // 🔥 Clean markdown formatting if Gemini adds it
    // ✅ Ensure Gemini response is extracted properly
-const rawText =
-  typeof planText === "string"
-    ? planText
-    : planText?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-// ✅ Convert to string safely
-const safeText = String(rawText);
-
-// ✅ Clean markdown
-const cleaned = safeText
-  .replace(/```json/g, "")
-  .replace(/```/g, "")
-  .trim();
+// 🔥 Call Gemini
+const parsedPlan = await generateSmartStudyPlan({
+  subject,
+  topics,
+  examDate,
+  hoursPerDay,
+});
 
 // 🚨 Safety check
-if (!cleaned) {
+if (!parsedPlan) {
   return res.status(500).json({
     error: "AI returned empty response",
   });
 }
-    let parsedPlan;
-
-    try {
-      parsedPlan = JSON.parse(cleaned);
-    } catch (parseError) {
-      console.error("❌ JSON Parse Error:", parseError);
-      return res.status(500).json({
-        error: "AI returned invalid JSON format",
-      });
-    }
 
     // 🔥 Save to Database
     const savedPlan = await AIStudyPlan.create({
