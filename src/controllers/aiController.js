@@ -1,5 +1,5 @@
 const ChatHistory = require("../models/ChatHistory");
-const { generateContent, safeJSONParse } = require("../services/geminiService");
+const { generateContent } = require("../services/geminiService");
 const QuizHistory = require("../models/QuizHistory");
 const UserActivity = require("../models/UserActivity");
 const rlService = require("../services/rlService");
