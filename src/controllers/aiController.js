@@ -5,98 +5,63 @@ const UserActivity = require("../models/UserActivity");
 const rlService = require("../services/rlService");
 
 /* ======================================================
+   SAFE JSON PARSER (GLOBAL FIX)
+====================================================== */
+const safeJSONParse = (text) => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    try {
+      const match = text.match(/\{[\s\S]*\}/);
+      return match ? JSON.parse(match[0]) : null;
+    } catch {
+      return null;
+    }
+  }
+};
+
+/* ======================================================
 AUTO SUBJECT DETECTION
 ====================================================== */
-
 const detectSubject = (text = "") => {
   const lower = text.toLowerCase();
 
-  if (
-    lower.includes("math") ||
-    lower.includes("algebra") ||
-    lower.includes("equation") ||
-    lower.includes("calculus") ||
-    lower.includes("derivative")
-  ) return "Mathematics";
-
-  if (
-    lower.includes("physics") ||
-    lower.includes("force") ||
-    lower.includes("energy") ||
-    lower.includes("motion") ||
-    lower.includes("velocity") ||
-    lower.includes("acceleration")
-  ) return "Physics";
-
-  if (
-    lower.includes("chemistry") ||
-    lower.includes("reaction") ||
-    lower.includes("molecule") ||
-    lower.includes("atom")
-  ) return "Chemistry";
-
-  if (
-    lower.includes("biology") ||
-    lower.includes("cell") ||
-    lower.includes("organism") ||
-    lower.includes("dna")
-  ) return "Biology";
-
-  if (
-    lower.includes("english") ||
-    lower.includes("grammar") ||
-    lower.includes("literature") ||
-    lower.includes("sentence")
-  ) return "English";
-
-  if (
-    lower.includes("computer") ||
-    lower.includes("programming") ||
-    lower.includes("coding") ||
-    lower.includes("algorithm")
-  ) return "Computer";
-
-  if (
-    lower.includes("ai") ||
-    lower.includes("machine learning") ||
-    lower.includes("neural network")
-  ) return "AI";
+  if (lower.match(/math|algebra|equation|calculus|derivative/)) return "Mathematics";
+  if (lower.match(/physics|force|energy|motion|velocity|acceleration/)) return "Physics";
+  if (lower.match(/chemistry|reaction|molecule|atom/)) return "Chemistry";
+  if (lower.match(/biology|cell|dna|organism/)) return "Biology";
+  if (lower.match(/english|grammar|literature|sentence/)) return "English";
+  if (lower.match(/computer|coding|programming|algorithm/)) return "Computer";
+  if (lower.match(/ai|machine learning|neural network/)) return "AI";
 
   return "General";
 };
 
 /* ======================================================
-CALCULATE USER PERFORMANCE
+USER PERFORMANCE
 ====================================================== */
-
 const getAverageScore = async (userId) => {
   const quizzes = await QuizHistory.find({ user: userId });
 
-  if (quizzes.length === 0) return 50;
+  if (!quizzes.length) return 50;
 
   const totalScore = quizzes.reduce((acc, q) => acc + q.score, 0);
-  const totalQuestions = quizzes.reduce(
-    (acc, q) => acc + q.totalQuestions,
-    0
-  );
+  const totalQ = quizzes.reduce((acc, q) => acc + q.totalQuestions, 0);
 
-  return totalQuestions ? (totalScore / totalQuestions) * 100 : 50;
+  return totalQ ? (totalScore / totalQ) * 100 : 50;
 };
 
 /* ======================================================
 AI SUMMARY
 ====================================================== */
-
 const generateSummary = async (req, res) => {
   try {
     const { text } = req.body;
-
-    if (!text)
-      return res.status(400).json({ message: "Text is required" });
+    if (!text) return res.status(400).json({ message: "Text is required" });
 
     const subject = detectSubject(text);
 
-    const prompt = `Summarize the following content in simple bullet points:\n\n${text}`;
+    const prompt = `Summarize in simple bullet points:\n\n${text}`;
 
     const summary = await generateContent(prompt);
 
@@ -115,15 +80,12 @@ const generateSummary = async (req, res) => {
 };
 
 /* ======================================================
-AI QUIZ GENERATION (SAFE)
+🔥 AI QUIZ GENERATION (FIXED)
 ====================================================== */
-
 const generateQuiz = async (req, res) => {
   try {
     const { text } = req.body;
-
-    if (!text)
-      return res.status(400).json({ message: "Text is required" });
+    if (!text) return res.status(400).json({ message: "Text is required" });
 
     const subject = detectSubject(text);
 
@@ -132,48 +94,47 @@ const generateQuiz = async (req, res) => {
     const difficulty = await rlService.chooseAction(req.user.id, state);
 
     const prompt = `
-Create a ${difficulty} level ${subject} quiz.
+You are an expert teacher.
 
-Return ONLY valid JSON:
+Generate a ${difficulty} level ${subject} quiz.
 
+STRICT RULES:
+- Return ONLY JSON
+- No markdown
+- No explanation text
+- Exactly 5 questions
+- Each must have 4 options
+- Only one correct answer
+
+FORMAT:
 {
-"questions":[
-{
-"question":"string",
-"options":["A","B","C","D"],
-"correctAnswer":"exact option",
-"explanation":"short explanation"
-}
-]
+  "questions":[
+    {
+      "question":"string",
+      "options":["A","B","C","D"],
+      "correctAnswer":"exact option text",
+      "explanation":"short explanation"
+    }
+  ]
 }
 
-Generate exactly 5 questions.
-
-Text:
+TEXT:
 ${text}
 `;
 
-    let quizRaw = await generateContent(prompt);
+    const result = await generateContent(prompt);
 
-    // 🔥 CLEAN RESPONSE
-    quizRaw = quizRaw
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+    if (!result || result.includes("temporarily unavailable")) {
+      throw new Error("AI unavailable");
+    }
 
-    let quiz;
+    const parsed = safeJSONParse(result);
 
-    try {
-      if (!quizRaw || quizRaw.includes("temporarily unavailable")) {
-        throw new Error("AI failed");
-      }
+    if (!parsed || !parsed.questions) {
+      console.warn("⚠️ Invalid quiz → fallback");
 
-      quiz = JSON.parse(quizRaw);
-    } catch (err) {
-      console.warn("Invalid JSON from AI, using fallback quiz");
-
-      quiz = {
-        questions: [
+      return res.json({
+        quiz: [
           {
             question: "Fallback question",
             options: ["A", "B", "C", "D"],
@@ -181,16 +142,19 @@ ${text}
             explanation: "Fallback explanation",
           },
         ],
-      };
+        difficulty,
+        subject,
+      });
     }
 
     res.json({
-      quiz: quiz.questions,
+      quiz: parsed.questions,
       difficulty,
       subject,
     });
+
   } catch (error) {
-    console.error("AI Quiz Error:", error);
+    console.error("AI Quiz Error:", error.message);
     res.status(500).json({ message: "AI generation failed" });
   }
 };
@@ -198,11 +162,9 @@ ${text}
 /* ======================================================
 QUIZ SCORING
 ====================================================== */
-
 const scoreQuiz = async (req, res) => {
   try {
     const userId = req.user.id;
-
     const { questions, userAnswers, difficulty, subject } = req.body;
 
     if (!questions || !userAnswers) {
@@ -214,26 +176,15 @@ const scoreQuiz = async (req, res) => {
     questions.forEach((q, i) => {
       const correct = q.correctAnswer.trim();
       const user = userAnswers[i];
-
-      if (!user) return;
-
-      if (correct === user || correct.startsWith(user)) {
-        score++;
-      }
+      if (user && (correct === user || correct.startsWith(user))) score++;
     });
 
     const totalQuestions = questions.length;
     const percentage = (score / totalQuestions) * 100;
 
-    let detectedSubject = subject;
-
-    if (!detectedSubject || detectedSubject === "General") {
-      const combinedText = questions
-        .map((q) => q.question + " " + q.options.join(" "))
-        .join(" ");
-
-      detectedSubject = detectSubject(combinedText);
-    }
+    let detectedSubject = subject || detectSubject(
+      questions.map(q => q.question).join(" ")
+    );
 
     await QuizHistory.create({
       user: userId,
@@ -249,12 +200,7 @@ const scoreQuiz = async (req, res) => {
     const state = rlService.getState(percentage);
     const action = difficulty.replace("_quiz", "");
 
-    await rlService.updateQValue(
-      userId,
-      state,
-      action,
-      percentage
-    );
+    await rlService.updateQValue(userId, state, action, percentage);
 
     await UserActivity.create({
       user: userId,
@@ -272,6 +218,7 @@ const scoreQuiz = async (req, res) => {
       difficulty,
       percentage,
     });
+
   } catch (error) {
     console.error("Quiz Scoring Error:", error);
     res.status(500).json({ message: "Quiz scoring failed" });
@@ -279,57 +226,40 @@ const scoreQuiz = async (req, res) => {
 };
 
 /* ======================================================
-FLASHCARDS (SAFE)
+FLASHCARDS (FIXED)
 ====================================================== */
-
 const generateFlashcards = async (req, res) => {
   try {
     const { text } = req.body;
-
-    if (!text)
-      return res.status(400).json({ message: "Text required" });
+    if (!text) return res.status(400).json({ message: "Text required" });
 
     const subject = detectSubject(text);
 
     const prompt = `
-Create flashcards.
+Generate 5 flashcards in JSON.
 
-Return JSON:
-
+FORMAT:
 {
-"flashcards":[
-{"question":"string","answer":"string"}
-]
+ "flashcards":[
+  {"question":"string","answer":"string"}
+ ]
 }
 
-Generate exactly 5 flashcards.
-
-Text:
+TEXT:
 ${text}
 `;
 
-    let raw = await generateContent(prompt);
+    const result = await generateContent(prompt);
+    const parsed = safeJSONParse(result);
 
-    raw = raw
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+    if (!parsed || !parsed.flashcards) {
+      console.warn("⚠️ Flashcard fallback triggered");
 
-    let parsed;
-
-    try {
-      parsed = JSON.parse(raw);
-    } catch (err) {
-      console.warn("Invalid JSON from AI, using fallback flashcards");
-
-      parsed = {
+      return res.json({
         flashcards: [
-          {
-            question: "Fallback question",
-            answer: "Fallback answer",
-          },
+          { question: "Fallback question", answer: "Fallback answer" },
         ],
-      };
+      });
     }
 
     await UserActivity.create({
@@ -340,6 +270,7 @@ ${text}
     });
 
     res.json(parsed);
+
   } catch (error) {
     console.error("Flashcards Error:", error);
     res.status(500).json({ message: "AI generation failed" });
@@ -349,13 +280,10 @@ ${text}
 /* ======================================================
 AI CHAT
 ====================================================== */
-
 const aiChat = async (req, res) => {
   try {
     const { message } = req.body;
-
-    if (!message)
-      return res.status(400).json({ message: "Message required" });
+    if (!message) return res.status(400).json({ message: "Message required" });
 
     const reply = await generateContent(message);
 
@@ -368,6 +296,7 @@ const aiChat = async (req, res) => {
     });
 
     res.json({ reply });
+
   } catch (error) {
     console.error("AI Chat Error:", error);
     res.status(500).json({ message: "AI chat failed" });

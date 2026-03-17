@@ -7,59 +7,89 @@ if (!API_KEY) {
   throw new Error("GEMINI_API_KEY is not set in environment variables");
 }
 
-const MODEL = "gemini-1.5-flash";
+/* ======================================================
+   ✅ MULTI-MODEL FALLBACK (PERMANENT FIX)
+====================================================== */
+const MODELS = [
+  "models/gemini-1.5-flash-latest",
+  "models/gemini-1.5-pro",
+];
 
 /* ======================================================
-   GENERATE CONTENT (STABLE VERSION)
+   GENERATE CONTENT (ULTRA SAFE)
 ====================================================== */
 async function generateContent(prompt) {
   prompt = (prompt || "").slice(0, 8000);
 
-  try {
-    const res = await fetch(
-      `${BASE_URL}/models/${MODEL}:generateContent?key=${API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
-        }),
+  for (let model of MODELS) {
+    try {
+      const res = await fetch(
+        `${BASE_URL}/${model}:generateContent?key=${API_KEY}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: prompt }],
+              },
+            ],
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      /* ❌ HANDLE API ERROR */
+      if (!res.ok) {
+        console.error(`❌ ${model} failed:`, data?.error?.message);
+
+        // Rate limit → stop retrying
+        if (data?.error?.code === 429) {
+          throw new Error("Rate limit hit. Try again later.");
+        }
+
+        // Try next model
+        continue;
       }
-    );
 
-    const data = await res.json();
+      /* ✅ SUCCESS */
+      const text =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!res.ok) {
-      console.error("Gemini Error:", data);
+      if (text) return text;
 
-      if (data.error?.code === 429) {
-        throw new Error("Rate limit hit. Try again in a few seconds.");
-      }
-
-      throw new Error(data.error?.message || "Gemini failed");
+    } catch (err) {
+      console.error(`⚠️ ${model} crashed:`, err.message);
+      continue;
     }
+  }
 
-    return (
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "No AI response"
-    );
+  /* ❌ ALL MODELS FAILED */
+  return "AI is temporarily unavailable. Please try again.";
+}
 
-  } catch (error) {
-    console.error("AI Service Error:", error.message);
+/* ======================================================
+   SAFE JSON PARSER (VERY IMPORTANT)
+====================================================== */
+function safeJSONParse(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    try {
+      // 🔥 Try to extract JSON if AI added extra text
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) return JSON.parse(match[0]);
+    } catch {}
 
-    // 🔥 IMPORTANT: DO NOT CRASH APP
-    return "AI is temporarily unavailable. Please try again.";
+    return null;
   }
 }
 
 /* ======================================================
-   STUDY PLAN GENERATOR (SAFE)
+   STUDY PLAN GENERATOR (ULTRA SAFE)
 ====================================================== */
 async function generateSmartStudyPlan({
   subject,
@@ -77,16 +107,15 @@ Topics: ${topics}
 Exam Date: ${examDate}
 Daily Study Hours: ${hoursPerDay}
 
-Instructions:
+Rules:
 - Divide into weeks
 - Distribute topics evenly
-- Allocate hours logically
-- Include revision days before exam
-- Return ONLY valid JSON
+- Include revision before exam
+- Return ONLY JSON
 - No markdown
-- No extra explanation text
+- No explanation
 
-Required Format:
+Format:
 {
   "weeks": [
     {
@@ -105,32 +134,31 @@ Required Format:
 
   const result = await generateContent(prompt);
 
-  // 🔥 FAIL-SAFE JSON PARSE
-  try {
-    return JSON.parse(result);
-  } catch {
-    console.warn("AI returned invalid JSON, using fallback");
+  const parsed = safeJSONParse(result);
 
-    return {
-      weeks: [
-        {
-          week: "Week 1",
-          days: [
-            {
-              day: "Day 1",
-              focus: "Basic Concepts",
-              hours: hoursPerDay || 2,
-            },
-          ],
-        },
-      ],
-    };
-  }
+  if (parsed) return parsed;
+
+  console.warn("⚠️ AI returned invalid JSON → using fallback");
+
+  /* ✅ FALLBACK PLAN */
+  return {
+    weeks: [
+      {
+        week: "Week 1",
+        days: [
+          {
+            day: "Day 1",
+            focus: "Basic Concepts",
+            hours: hoursPerDay || 2,
+          },
+        ],
+      },
+    ],
+  };
 }
 
 module.exports = {
   generateContent,
   generateSmartStudyPlan,
 };
-
 
