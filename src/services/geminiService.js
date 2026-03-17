@@ -7,29 +7,29 @@ if (!API_KEY) {
   throw new Error("GEMINI_API_KEY is not set in environment variables");
 }
 
-const MODEL = "models/gemini-1.5-flash";
+const MODEL = "gemini-1.5-flash";
 
 /* ======================================================
-   GENERATE CONTENT
+   GENERATE CONTENT (STABLE VERSION)
 ====================================================== */
 async function generateContent(prompt) {
-prompt = (prompt || "").slice(0, 8000);
-  try {
+  prompt = (prompt || "").slice(0, 8000);
 
+  try {
     const res = await fetch(
-      `${BASE_URL}/${MODEL}:generateContent?key=${API_KEY}`,
+      `${BASE_URL}/models/${MODEL}:generateContent?key=${API_KEY}`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: prompt }]
-            }
-          ]
-        })
+              parts: [{ text: prompt }],
+            },
+          ],
+        }),
       }
     );
 
@@ -39,29 +39,34 @@ prompt = (prompt || "").slice(0, 8000);
       console.error("Gemini Error:", data);
 
       if (data.error?.code === 429) {
-        throw new Error("Gemini rate limit reached. Please wait a few seconds.");
+        throw new Error("Rate limit hit. Try again in a few seconds.");
       }
 
-      throw new Error(data.error?.message || "Gemini generateContent failed");
+      throw new Error(data.error?.message || "Gemini failed");
     }
 
-    if (!data.candidates || !data.candidates.length) {
-      throw new Error("Gemini returned empty response");
-    }
-
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "No AI response";
+    return (
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "No AI response"
+    );
 
   } catch (error) {
     console.error("AI Service Error:", error.message);
-    throw error;
+
+    // 🔥 IMPORTANT: DO NOT CRASH APP
+    return "AI is temporarily unavailable. Please try again.";
   }
 }
 
 /* ======================================================
-   AI STUDY PLAN GENERATOR
+   STUDY PLAN GENERATOR (SAFE)
 ====================================================== */
-async function generateSmartStudyPlan({ subject, topics, examDate, hoursPerDay }) {
-
+async function generateSmartStudyPlan({
+  subject,
+  topics,
+  examDate,
+  hoursPerDay,
+}) {
   const prompt = `
 You are an intelligent academic planner.
 
@@ -98,12 +103,34 @@ Required Format:
 }
 `;
 
-  return await generateContent(prompt);
+  const result = await generateContent(prompt);
+
+  // 🔥 FAIL-SAFE JSON PARSE
+  try {
+    return JSON.parse(result);
+  } catch {
+    console.warn("AI returned invalid JSON, using fallback");
+
+    return {
+      weeks: [
+        {
+          week: "Week 1",
+          days: [
+            {
+              day: "Day 1",
+              focus: "Basic Concepts",
+              hours: hoursPerDay || 2,
+            },
+          ],
+        },
+      ],
+    };
+  }
 }
 
 module.exports = {
   generateContent,
-  generateSmartStudyPlan
+  generateSmartStudyPlan,
 };
 
 
