@@ -7,6 +7,12 @@ const chatHistorySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+
+    title: {
+      type: String,
+      default: "New Chat",
+    },
+
     messages: [
       {
         role: {
@@ -17,6 +23,10 @@ const chatHistorySchema = new mongoose.Schema(
         content: {
           type: String,
           required: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
         },
       },
     ],

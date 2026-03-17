@@ -23,6 +23,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const rlRoutes = require("./routes/rlRoutes");
 const progressRoutes = require("./routes/progressRoutes");
 const knowledgeGraphRoutes = require("./routes/knowledgeGraphRoutes");
+const chatHistoryRoutes = require("./routes/chatHistoryRoutes");
 
 
 const app = express();
@@ -77,6 +78,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/rl", rlRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/knowledge-graph", knowledgeGraphRoutes);
+app.use("/api/chat-history", chatHistoryRoutes);
 
 // --------------------
 // Global Error Handler

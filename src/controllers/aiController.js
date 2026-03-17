@@ -6,7 +6,7 @@ const rlService = require("../services/rlService");
 const { updateUserProgress } = require("../services/progressService");
 
 /* ======================================================
-   SAFE JSON PARSER (GLOBAL FIX)
+   SAFE JSON PARSER
 ====================================================== */
 const safeJSONParse = (text) => {
   try {
@@ -22,7 +22,7 @@ const safeJSONParse = (text) => {
 };
 
 /* ======================================================
-AUTO SUBJECT DETECTION
+   AUTO SUBJECT DETECTION
 ====================================================== */
 const detectSubject = (text = "") => {
   const lower = text.toLowerCase();
@@ -39,7 +39,7 @@ const detectSubject = (text = "") => {
 };
 
 /* ======================================================
-USER PERFORMANCE
+   USER PERFORMANCE
 ====================================================== */
 const getAverageScore = async (userId) => {
   const quizzes = await QuizHistory.find({ user: userId });
@@ -53,7 +53,7 @@ const getAverageScore = async (userId) => {
 };
 
 /* ======================================================
-AI SUMMARY
+   AI SUMMARY
 ====================================================== */
 const generateSummary = async (req, res) => {
   try {
@@ -61,7 +61,6 @@ const generateSummary = async (req, res) => {
     if (!text) return res.status(400).json({ message: "Text is required" });
 
     const subject = detectSubject(text);
-
     const prompt = `Summarize in simple bullet points:\n\n${text}`;
 
     const summary = await generateContent(prompt);
@@ -81,7 +80,7 @@ const generateSummary = async (req, res) => {
 };
 
 /* ======================================================
-🔥 AI QUIZ GENERATION (FIXED)
+   AI QUIZ GENERATION
 ====================================================== */
 const generateQuiz = async (req, res) => {
   try {
@@ -102,10 +101,7 @@ Generate a ${difficulty} level ${subject} quiz.
 STRICT RULES:
 - Return ONLY JSON
 - No markdown
-- No explanation text
 - Exactly 5 questions
-- Each must have 4 options
-- Only one correct answer
 
 FORMAT:
 {
@@ -124,16 +120,9 @@ ${text}
 `;
 
     const result = await generateContent(prompt);
-
-    if (!result || result.includes("temporarily unavailable")) {
-      throw new Error("AI unavailable");
-    }
-
     const parsed = safeJSONParse(result);
 
     if (!parsed || !parsed.questions) {
-      console.warn("⚠️ Invalid quiz → fallback");
-
       return res.json({
         quiz: [
           {
@@ -155,42 +144,31 @@ ${text}
     });
 
   } catch (error) {
-    console.error("AI Quiz Error:", error.message);
+    console.error("AI Quiz Error:", error);
     res.status(500).json({ message: "AI generation failed" });
   }
 };
 
 /* ======================================================
-QUIZ SCORING
+   QUIZ SCORING
 ====================================================== */
 const scoreQuiz = async (req, res) => {
   try {
     const userId = req.user.id;
     const { questions, userAnswers, difficulty, subject } = req.body;
 
-    if (!questions || !userAnswers) {
-      return res.status(400).json({ message: "Quiz data missing" });
-    }
-
     let score = 0;
 
     questions.forEach((q, i) => {
-      const correct = q.correctAnswer.trim();
-      const user = userAnswers[i];
-      if (user && (correct === user || correct.startsWith(user))) score++;
+      if (q.correctAnswer === userAnswers[i]) score++;
     });
 
     const totalQuestions = questions.length;
     const percentage = (score / totalQuestions) * 100;
 
-    let detectedSubject = subject || detectSubject(
-      questions.map(q => q.question).join(" ")
-    );
-
     await QuizHistory.create({
       user: userId,
-      subject: detectedSubject,
-      topic: detectedSubject,
+      subject,
       score,
       totalQuestions,
       difficulty,
@@ -198,27 +176,15 @@ const scoreQuiz = async (req, res) => {
       userAnswers,
     });
 
-    const state = rlService.getState(percentage);
-    const action = difficulty.replace("_quiz", "");
-
-    await rlService.updateQValue(userId, state, action, percentage);
-
     await UserActivity.create({
       user: userId,
       type: "quiz",
-      subject: detectedSubject,
-      difficulty,
+      subject,
       score,
       durationMinutes: 10,
     });
 
-    res.json({
-      score,
-      totalQuestions,
-      subject: detectedSubject,
-      difficulty,
-      percentage,
-    });
+    res.json({ score, totalQuestions, percentage });
 
   } catch (error) {
     console.error("Quiz Scoring Error:", error);
@@ -227,19 +193,14 @@ const scoreQuiz = async (req, res) => {
 };
 
 /* ======================================================
-FLASHCARDS (FIXED)
+   FLASHCARDS
 ====================================================== */
 const generateFlashcards = async (req, res) => {
   try {
     const { text } = req.body;
-    if (!text) return res.status(400).json({ message: "Text required" });
-
-    const subject = detectSubject(text);
 
     const prompt = `
-Generate 5 flashcards in JSON.
-
-FORMAT:
+Generate 5 flashcards JSON format:
 {
  "flashcards":[
   {"question":"string","answer":"string"}
@@ -253,24 +214,7 @@ ${text}
     const result = await generateContent(prompt);
     const parsed = safeJSONParse(result);
 
-    if (!parsed || !parsed.flashcards) {
-      console.warn("⚠️ Flashcard fallback triggered");
-
-      return res.json({
-        flashcards: [
-          { question: "Fallback question", answer: "Fallback answer" },
-        ],
-      });
-    }
-
-    await UserActivity.create({
-      user: req.user.id,
-      type: "flashcard",
-      subject,
-      durationMinutes: 5,
-    });
-
-    res.json(parsed);
+    res.json(parsed || { flashcards: [] });
 
   } catch (error) {
     console.error("Flashcards Error:", error);
@@ -279,31 +223,53 @@ ${text}
 };
 
 /* ======================================================
-AI CHAT
+   🤖 AI CHAT (UPDATED WITH HISTORY)
 ====================================================== */
 const aiChat = async (req, res) => {
   try {
-    const { message } = req.body;
-    if (!message) return res.status(400).json({ message: "Message required" });
+    const { message, chatId } = req.body;
 
-    const reply = await generateContent(message);
+    if (!message || !chatId) {
+      return res.status(400).json({ message: "Message and chatId required" });
+    }
 
-    /* 💾 SAVE CHAT */
-    await ChatHistory.create({
+    const chat = await ChatHistory.findOne({
+      _id: chatId,
       user: req.user.id,
-      messages: [
-        { role: "user", content: message },
-        { role: "ai", content: reply },
-      ],
     });
 
-    /* 🔥 UPDATE USER PROGRESS (XP + LEVEL + STREAK) */
+    if (!chat) {
+      return res.status(404).json({ message: "Chat not found" });
+    }
+
+    // Save user message
+    chat.messages.push({
+      role: "user",
+      content: message,
+    });
+
+    // AI response
+    const reply = await generateContent(message);
+
+    // Save AI message
+    chat.messages.push({
+      role: "ai",
+      content: reply,
+    });
+
+    // Auto title
+    if (chat.messages.length === 2) {
+      chat.title = message.substring(0, 30);
+    }
+
+    await chat.save();
+
     const progress = await updateUserProgress(req.user.id);
 
-    /* ✅ FINAL RESPONSE */
     res.json({
       reply,
       progress,
+      chatId: chat._id,
     });
 
   } catch (error) {
@@ -311,6 +277,7 @@ const aiChat = async (req, res) => {
     res.status(500).json({ message: "AI chat failed" });
   }
 };
+
 module.exports = {
   generateSummary,
   generateQuiz,
