@@ -52,11 +52,27 @@ router.post("/generate-plan", authMiddleware, async (req, res) => {
     });
 
     // 🔥 Clean markdown formatting if Gemini adds it
-    const cleaned = planText
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+   // ✅ Ensure Gemini response is extracted properly
+const rawText =
+  typeof planText === "string"
+    ? planText
+    : planText?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
+// ✅ Convert to string safely
+const safeText = String(rawText);
+
+// ✅ Clean markdown
+const cleaned = safeText
+  .replace(/```json/g, "")
+  .replace(/```/g, "")
+  .trim();
+
+// 🚨 Safety check
+if (!cleaned) {
+  return res.status(500).json({
+    error: "AI returned empty response",
+  });
+}
     let parsedPlan;
 
     try {
