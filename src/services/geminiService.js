@@ -1,85 +1,60 @@
-const fetch = require("node-fetch");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const API_KEY = process.env.GEMINI_API_KEY;
 
 if (!API_KEY) {
   throw new Error("GEMINI_API_KEY is not set in environment variables");
 }
 
-/* ======================================================
-   ✅ MULTI-MODEL FALLBACK (PERMANENT FIX)
-====================================================== */
-const MODELS = [
-  "models/gemini-1.5-flash-latest",
-  "models/gemini-1.5-pro",
-];
+const genAI = new GoogleGenerativeAI(API_KEY);
 
 /* ======================================================
-   GENERATE CONTENT (ULTRA SAFE)
+   GENERATE CONTENT (GEMINI 2.5 - STABLE)
 ====================================================== */
 async function generateContent(prompt) {
-  prompt = (prompt || "").slice(0, 8000);
+  try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+    });
 
-  for (let model of MODELS) {
-    try {
-      const res = await fetch(
-        `${BASE_URL}/${model}:generateContent?key=${API_KEY}`,
+    const result = await model.generateContent({
+      contents: [
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [{ text: prompt }],
-              },
-            ],
-          }),
-        }
-      );
+          role: "user",
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.3,
+      },
+    });
 
-      const data = await res.json();
+    const response = result.response;
 
-      /* ❌ HANDLE API ERROR */
-      if (!res.ok) {
-        console.error(`❌ ${model} failed:`, data?.error?.message);
+    const text = response.text();
 
-        // Rate limit → stop retrying
-        if (data?.error?.code === 429) {
-          throw new Error("Rate limit hit. Try again later.");
-        }
-
-        // Try next model
-        continue;
-      }
-
-      /* ✅ SUCCESS */
-      const text =
-        data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (text) return text;
-
-    } catch (err) {
-      console.error(`⚠️ ${model} crashed:`, err.message);
-      continue;
+    if (!text) {
+      throw new Error("Empty AI response");
     }
-  }
 
-  /* ❌ ALL MODELS FAILED */
-  return "AI is temporarily unavailable. Please try again.";
+    return text;
+
+  } catch (error) {
+    console.error("Gemini 2.5 Error:", error.message);
+
+    // ❌ Don't crash app
+    return "AI is temporarily unavailable. Please try again.";
+  }
 }
 
 /* ======================================================
-   SAFE JSON PARSER (VERY IMPORTANT)
+   SAFE JSON PARSER
 ====================================================== */
 function safeJSONParse(text) {
   try {
     return JSON.parse(text);
   } catch {
     try {
-      // 🔥 Try to extract JSON if AI added extra text
       const match = text.match(/\{[\s\S]*\}/);
       if (match) return JSON.parse(match[0]);
     } catch {}
@@ -89,7 +64,7 @@ function safeJSONParse(text) {
 }
 
 /* ======================================================
-   STUDY PLAN GENERATOR (ULTRA SAFE)
+   STUDY PLAN GENERATOR (SAFE)
 ====================================================== */
 async function generateSmartStudyPlan({
   subject,
@@ -138,9 +113,8 @@ Format:
 
   if (parsed) return parsed;
 
-  console.warn("⚠️ AI returned invalid JSON → using fallback");
+  console.warn("⚠️ Invalid JSON → fallback plan");
 
-  /* ✅ FALLBACK PLAN */
   return {
     weeks: [
       {
@@ -160,5 +134,5 @@ Format:
 module.exports = {
   generateContent,
   generateSmartStudyPlan,
+  safeJSONParse, // export for controller reuse
 };
-
