@@ -4,6 +4,7 @@ const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 
+
 // Existing AI Controllers
 const {
   generateSummary,
@@ -18,6 +19,8 @@ const { generateSmartStudyPlan } = require("../services/geminiService");
 
 // AI Study Plan Model
 const AIStudyPlan = require("../models/AIStudyPlan");
+// Quiz History Model
+const QuizHistory = require("../models/QuizHistory");
 
 /* ======================================================
    EXISTING AI ROUTES
@@ -84,6 +87,23 @@ if (!parsedPlan) {
     res.status(500).json({
       error: "AI study plan generation failed",
     });
+  }
+});
+
+
+/* ======================================================
+   QUIZ HISTORY FETCH
+====================================================== */
+
+router.get("/quiz/history", authMiddleware, async (req, res) => {
+  try {
+    const history = await QuizHistory.find({ user: req.user.id })
+      .sort({ createdAt: -1 });
+
+    res.json(history);
+  } catch (error) {
+    console.error("❌ Quiz History Error:", error);
+    res.status(500).json({ error: "Failed to fetch quiz history" });
   }
 });
 

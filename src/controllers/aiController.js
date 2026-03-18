@@ -155,7 +155,7 @@ ${text}
 const scoreQuiz = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { questions, userAnswers, difficulty, subject } = req.body;
+    const { questions, userAnswers, difficulty, subject, topic } = req.body;
 
     let score = 0;
 
@@ -166,9 +166,11 @@ const scoreQuiz = async (req, res) => {
     const totalQuestions = questions.length;
     const percentage = (score / totalQuestions) * 100;
 
+    // 🔥 SAVE FULL DATA (FIXED)
     await QuizHistory.create({
       user: userId,
       subject,
+      topic: topic || subject, // ✅ fallback (important)
       score,
       totalQuestions,
       difficulty,
