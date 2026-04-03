@@ -1,4 +1,4 @@
-c/* ========================= STATIC REPORT (WORKING VERSION) ========================= */
+/* ========================= STATIC REPORT (WORKING VERSION) ========================= */
 
 exports.getReport = async (req, res) => {
   try {
