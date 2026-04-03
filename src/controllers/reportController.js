@@ -4,9 +4,7 @@ const FlashcardProgress = require("../models/FlashcardProgress");
 const User = require("../models/User");
 const Report = require("../models/Report");
 
-/* =========================
-   HELPERS
-========================= */
+/* ========================= HELPERS ========================= */
 
 function getPeriodRange(period) {
   const now = new Date();
@@ -26,29 +24,19 @@ function getPeriodRange(period) {
 
 function groupByDay(data) {
   const map = {};
-
   data.forEach(item => {
     const date = new Date(item.createdAt).toISOString().split("T")[0];
     map[date] = (map[date] || 0) + (item.hours || 1);
   });
 
-  return Object.entries(map).map(([date, value]) => ({
-    date,
-    value,
-  }));
+  return Object.entries(map).map(([date, value]) => ({ date, value }));
 }
 
 function computeStats(quizzes, summaries, flashcards, studyHours, start, end) {
-  const totalHours = studyHours.reduce(
-    (sum, h) => sum + (h.hours || 0),
-    0
-  );
+  const totalHours = studyHours.reduce((sum, h) => sum + (h.hours || 0), 0);
 
   const avgScore = quizzes.length
-    ? Math.round(
-        quizzes.reduce((s, q) => s + (q.score || 0), 0) /
-          quizzes.length
-      )
+    ? Math.round(quizzes.reduce((s, q) => s + (q.score || 0), 0) / quizzes.length)
     : 0;
 
   const totalDays = Math.max(
@@ -88,21 +76,15 @@ function computeStreak(studyHours) {
 function generateInsights(stats) {
   const insights = [];
 
-  if (stats.avgScore > 80)
-    insights.push("Great performance in quizzes 🚀");
-
-  if (stats.totalHours < 10)
-    insights.push("Try to increase study time ⏳");
-
-  if (stats.flashcardsMastered > 20)
-    insights.push("Strong memory retention 💡");
+  if (stats.avgScore > 80) insights.push("Great performance in quizzes 🚀");
+  if (stats.totalHours < 10) insights.push("Try to increase study time ⏳");
+  if (stats.flashcardsMastered > 20) insights.push("Strong memory retention 💡");
 
   return insights;
 }
 
 function computeSubjectDistribution(quizzes) {
   const map = {};
-
   quizzes.forEach(q => {
     const subject = q.subject || "General";
     map[subject] = (map[subject] || 0) + 1;
@@ -114,16 +96,25 @@ function computeSubjectDistribution(quizzes) {
   }));
 }
 
-/* =========================
-   MAIN REPORT
-========================= */
+/* ========================= MAIN REPORT ========================= */
 
 exports.getReport = async (req, res) => {
   try {
+    // ✅ AUTH FIX (MAIN BUG FIXED)
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const userId = req.user._id;
+
     const period = req.query.period || "30d";
     const { start, end } = getPeriodRange(period);
 
-    const userId = req.user?._id || "test_user";
+    // ✅ SAFE USER FETCH
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
     // FETCH DATA
     const quizzes = await QuizHistory.find({
@@ -141,9 +132,7 @@ exports.getReport = async (req, res) => {
       createdAt: { $gte: start, $lte: end },
     });
 
-    const summaries = []; // add model later if needed
-
-    const user = await User.findById(userId);
+    const summaries = [];
 
     // COMPUTE
     const stats = computeStats(
@@ -163,8 +152,8 @@ exports.getReport = async (req, res) => {
     // RESPONSE
     res.json({
       user: {
-        name: user?.name || "User",
-        avatarInitials: user?.name?.slice(0, 2) || "U",
+        name: user.name || "User",
+        avatarInitials: user.name?.slice(0, 2) || "U",
       },
       period,
       generatedAt: new Date(),
@@ -186,45 +175,29 @@ exports.getReport = async (req, res) => {
   }
 };
 
-/* =========================
-   SHARE FEATURE
-========================= */
+/* ========================= SHARE ========================= */
 
-// Create shareable report
 exports.createShareableReport = async (req, res) => {
   try {
     const { user, stats, period } = req.body;
-
-    const report = await Report.create({
-      user,
-      stats,
-      period,
-    });
-
+    const report = await Report.create({ user, stats, period });
     res.json({ id: report._id });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to create report" });
   }
 };
 
-// Get shared report
 exports.getSharedReport = async (req, res) => {
   try {
     const report = await Report.findById(req.params.id);
-
-    if (!report) {
-      return res.status(404).json({ error: "Report not found" });
-    }
-
+    if (!report) return res.status(404).json({ error: "Report not found" });
     res.json(report);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Error fetching report" });
   }
 };
 
-/* =========================
-   PERIOD OPTIONS
-========================= */
+/* ========================= PERIODS ========================= */
 
 exports.getPeriods = (req, res) => {
   res.json([
