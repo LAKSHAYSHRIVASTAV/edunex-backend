@@ -26,6 +26,7 @@ const knowledgeGraphRoutes = require("./routes/knowledgeGraphRoutes");
 const chatHistoryRoutes = require("./routes/chatHistoryRoutes");
 const flashcardRoutes = require("./routes/flashcardRoutes");
 const reportRoutes = require("./routes/reportRoutes");
+const conceptMapRoutes = require("./routes/ConceptMapRoutes");
 
 
 const app = express();
@@ -83,6 +84,7 @@ app.use("/api/knowledge-graph", knowledgeGraphRoutes);
 app.use("/api/chat-history", chatHistoryRoutes);
 app.use("/api/flashcards", flashcardRoutes);
 app.use("/api", reportRoutes);
+app.use("/api/concept-maps", conceptMapRoutes);
 // --------------------
 // Global Error Handler
 // --------------------
