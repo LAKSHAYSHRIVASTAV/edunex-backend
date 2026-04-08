@@ -30,9 +30,25 @@ const conceptMapRoutes = require("./routes/conceptMapRoutes");
 
 const app = express();
 
+const allowedOrigins = [
+  "https://edunex-frontend-xx8v.vercel.app",
+];
+
 app.use(
   cors({
-    origin: "https://edunex-frontend-xx8v.vercel.app",
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        /^https:\/\/edunex-frontend-xx8v-[a-z0-9-]+\.vercel\.app$/.test(origin);
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true,
   })
 );
