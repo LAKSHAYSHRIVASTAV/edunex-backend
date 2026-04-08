@@ -71,7 +71,7 @@ const chooseAction = async (userId, state) => {
    Q LEARNING UPDATE
 ================================ */
 
-const updateQValue = async (userId, state, action, reward) => {
+const updateQValue = async (userId, state, action, reward, nextState = state) => {
 
   const userState = await RLState.findOne({ user: userId });
 
@@ -85,7 +85,7 @@ const updateQValue = async (userId, state, action, reward) => {
   // Ensure numbers
   const currentQ = Number(userState.qTable[state]?.[action] ?? 0);
 
-  const futureValues = Object.values(userState.qTable[state] || {}).map(v => Number(v) || 0);
+  const futureValues = Object.values(userState.qTable[nextState] || {}).map(v => Number(v) || 0);
 
   const maxFuture = Math.max(...futureValues);
 

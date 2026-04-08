@@ -157,6 +157,12 @@ const scoreQuiz = async (req, res) => {
     const userId = req.user.id;
     const { questions, userAnswers, difficulty, subject, topic } = req.body;
 
+    if (!Array.isArray(questions) || !Array.isArray(userAnswers) || questions.length === 0) {
+      return res.status(400).json({
+        message: "questions and userAnswers are required",
+      });
+    }
+
     let score = 0;
 
     questions.forEach((q, i) => {
@@ -170,7 +176,7 @@ const scoreQuiz = async (req, res) => {
     await QuizHistory.create({
       user: userId,
       subject,
-      topic: topic || subject, // ✅ fallback (important)
+      topic: topic || subject, // Use subject as fallback if topic is missing
       score,
       totalQuestions,
       difficulty,

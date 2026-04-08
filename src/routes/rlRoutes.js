@@ -2,8 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const rlController = require("../controllers/rlController");
-const protect = require("./protectedRoutes");
+const authMiddleware = require("../middleware/authMiddleware");
 
-router.post("/update", protect, rlController.updateReward);
+router.post("/update", authMiddleware, rlController.updateReward);
 
 module.exports = router;

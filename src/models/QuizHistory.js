@@ -19,6 +19,12 @@ const QuizHistorySchema = new mongoose.Schema({
   questions: Array,
   userAnswers: Array,
 
+  difficulty: {
+    type: String,
+    enum: ["easy", "medium", "hard"],
+    default: "medium",
+  },
+
   score: Number,
   totalQuestions: Number,
 

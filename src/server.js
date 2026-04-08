@@ -26,43 +26,24 @@ const knowledgeGraphRoutes = require("./routes/knowledgeGraphRoutes");
 const chatHistoryRoutes = require("./routes/chatHistoryRoutes");
 const flashcardRoutes = require("./routes/flashcardRoutes");
 const reportRoutes = require("./routes/reportRoutes");
-const conceptMapRoutes = require("./routes/ConceptMapRoutes");
-
+const conceptMapRoutes = require("./routes/conceptMapRoutes");
 
 const app = express();
 
-// --------------------
-// Middleware
-// --------------------
-
 app.use(
   cors({
-    origin: "*",
-    credentials: true
+    origin: process.env.CORS_ORIGIN || "*",
+    credentials: true,
   })
 );
 
 app.use(express.json());
 
-// --------------------
-// Health Check Route
-// --------------------
-
 app.get("/health", (req, res) => {
   res.status(200).json({
-    status: "Backend is running successfully"
+    status: "Backend is running successfully",
   });
 });
-
-// --------------------
-// Connect Database
-// --------------------
-
-connectDB();
-
-// --------------------
-// API Routes
-// --------------------
 
 app.use("/api/auth", authRoutes);
 app.use("/api/protected", protectedRoutes);
@@ -85,27 +66,28 @@ app.use("/api/chat-history", chatHistoryRoutes);
 app.use("/api/flashcards", flashcardRoutes);
 app.use("/api", reportRoutes);
 app.use("/api/concept-maps", conceptMapRoutes);
-// --------------------
-// Global Error Handler
-// --------------------
 
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
 
   res.status(500).json({
-    message: "Internal server error"
+    message: "Internal server error",
   });
 });
 
-// --------------------
-// Start Server
-// --------------------
-
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log("🚀 NEW SERVER FILE RUNNING");
-});
+const startServer = async () => {
+  try {
+    await connectDB();
 
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error.message);
+    process.exit(1);
+  }
+};
 
+startServer();

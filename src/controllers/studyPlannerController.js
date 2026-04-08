@@ -1,6 +1,7 @@
 const QuizHistory = require("../models/QuizHistory");
 const StudyProgress = require("../models/StudyProgress");
 const rlService = require("../services/rlService");
+const mongoose = require("mongoose");
 
 exports.getStudyPlan = async (req, res) => {
 
@@ -100,7 +101,7 @@ exports.getStudyPlan = async (req, res) => {
 
     const weakTopicsData = await StudyProgress.aggregate([
       {
-        $match: { user: req.user.id }
+        $match: { user: new mongoose.Types.ObjectId(req.user.id) }
       },
       {
         $group: {
