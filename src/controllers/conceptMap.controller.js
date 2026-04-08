@@ -4,8 +4,8 @@ const { generateConceptMapFromText } = require('../services/ConceptMapService');
 // POST /api/concept-maps/generate
 exports.generate = async (req, res, next) => {
   try {
-    const { text, topic } = req.body;
-    const userId = req.user.id;
+    const { text, topic, userId: bodyUserId } = req.body;
+    const userId = req.user?.id || bodyUserId || 'guest';
 
     if (!text && !topic) {
       return res.status(400).json({ success: false, message: 'Provide text or topic to generate a concept map.' });
@@ -36,7 +36,7 @@ exports.generate = async (req, res, next) => {
 // GET /api/concept-maps/:userId
 exports.getAll = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id || req.params.userId || 'guest';
     const maps = await ConceptMap.find({ userId })
       .select('title topic summary tags createdAt nodes edges')
       .sort({ createdAt: -1 });
@@ -49,10 +49,13 @@ exports.getAll = async (req, res, next) => {
 // GET /api/concept-maps/map/:id
 exports.getOne = async (req, res, next) => {
   try {
-    const map = await ConceptMap.findOne({
-      _id: req.params.id,
-      userId: req.user.id,
-    });
+    const query = { _id: req.params.id };
+
+    if (req.user?.id) {
+      query.userId = req.user.id;
+    }
+
+    const map = await ConceptMap.findOne(query);
     if (!map) return res.status(404).json({ success: false, message: 'Concept map not found.' });
     res.json({ success: true, data: map });
   } catch (err) {
@@ -64,8 +67,14 @@ exports.getOne = async (req, res, next) => {
 exports.updateLayout = async (req, res, next) => {
   try {
     const { nodes, layout } = req.body;
+    const query = { _id: req.params.id };
+
+    if (req.user?.id) {
+      query.userId = req.user.id;
+    }
+
     const map = await ConceptMap.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.id },
+      query,
       { ...(nodes && { nodes }), ...(layout && { layout }) },
       { new: true }
     );
@@ -79,10 +88,13 @@ exports.updateLayout = async (req, res, next) => {
 // DELETE /api/concept-maps/map/:id
 exports.deleteMap = async (req, res, next) => {
   try {
-    const map = await ConceptMap.findOneAndDelete({
-      _id: req.params.id,
-      userId: req.user.id,
-    });
+    const query = { _id: req.params.id };
+
+    if (req.user?.id) {
+      query.userId = req.user.id;
+    }
+
+    const map = await ConceptMap.findOneAndDelete(query);
     if (!map) return res.status(404).json({ success: false, message: 'Concept map not found.' });
     res.json({ success: true, message: 'Concept map deleted.' });
   } catch (err) {
