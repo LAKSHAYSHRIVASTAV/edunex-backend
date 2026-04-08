@@ -1,18 +1,14 @@
 const express = require("express");
 const router = express.Router();
+const authMiddleware = require("../middleware/authMiddleware");
 
 const reportController = require("../controllers/reportController");
 
-// 🔹 EXISTING ROUTES (KEEP THESE)
-router.get("/summary", reportController.getReport);
+router.get("/summary", authMiddleware, reportController.getMyReport);
+router.get("/report/periods", reportController.getPeriods);
 router.get("/periods", reportController.getPeriods);
-
-// 🔥 NEW SHARE ROUTES (ADD THESE)
-
-// Create shareable report
-router.post("/share", reportController.createShareableReport);
-
-// Get shared report by ID
-router.get("/share/:id", reportController.getSharedReport);
+router.post("/report/share", authMiddleware, reportController.createShareableReport);
+router.get("/report/share/:id", reportController.getSharedReport);
+router.get("/report/:userId", authMiddleware, reportController.getReport);
 
 module.exports = router;
