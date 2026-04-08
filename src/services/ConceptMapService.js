@@ -1,42 +1,21 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 const genAI = process.env.GEMINI_API_KEY
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   : null;
 
+const NODE_TYPES = ["core", "input", "reactant", "output", "byproduct", "process"];
+const EDGE_TYPES = ["produces", "requires", "converts", "absorbs", "releases"];
+
 const NODE_COLORS = {
   core: "#5B4EE8",
   input: "#1D9E75",
+  reactant: "#2F80ED",
   output: "#EF9F27",
-  process: "#3B8BD4",
   byproduct: "#D4537E",
-  concept: "#888780",
+  process: "#7C3AED",
 };
-
-const SYSTEM_PROMPT = `You are an expert educational AI that generates concept maps from study material.
-Return ONLY valid JSON with this shape:
-{
-  "title": "Short descriptive title",
-  "summary": "2-3 sentence overview",
-  "tags": ["tag1", "tag2"],
-  "nodes": [
-    {
-      "id": "n1",
-      "label": "Concept Name",
-      "type": "core|input|output|process|byproduct|concept",
-      "description": "Short description"
-    }
-  ],
-  "edges": [
-    {
-      "id": "e1",
-      "source": "n1",
-      "target": "n2",
-      "label": "relationship",
-      "type": "arrow|bidirectional|dashed"
-    }
-  ]
-}`;
 
 async function generateConceptMapFromText(text = "", topic = "") {
   if (!genAI) {
@@ -45,140 +24,197 @@ async function generateConceptMapFromText(text = "", topic = "") {
 
   try {
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: GEMINI_MODEL,
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+      },
     });
 
-    const prompt = topic
-      ? `Topic: ${topic}\n\nContext:\n${text || "None"}`
-      : `Generate concept map from:\n${text}`;
-
-    const result = await model.generateContent([
-      SYSTEM_PROMPT,
-      prompt,
-    ]);
-
-    const raw = result.response.text().trim();
-    const parsed = parseConceptMapJSON(raw);
-
+    const result = await model.generateContent(buildPrompt(text, topic));
+    const raw = result.response.text();
+    const parsed = parseGeminiJSON(raw);
     return normalizeConceptMap(parsed, text, topic);
   } catch (error) {
-    console.error("Concept map AI generation failed:", error.message);
+    console.error("Gemini concept map generation failed:", error.message);
     return createFallbackConceptMap(text, topic);
   }
 }
 
-function parseConceptMapJSON(raw) {
+function buildPrompt(text, topic) {
+  const source = topic
+    ? `Topic: ${topic}\nParagraph/context: ${text || "No paragraph provided"}`
+    : `Paragraph/context: ${text}`;
+
+  return `
+Generate a structured educational concept graph.
+
+Rules:
+- Extract 6 to 12 meaningful concepts.
+- Use ONLY these node types: ${NODE_TYPES.join(", ")}.
+- Use ONLY these relationship types: ${EDGE_TYPES.join(", ")}.
+- Every node must include: id, label, description, type, color.
+- Every edge must include: id, source, target, label, type.
+- Node ids must be stable ids like n1, n2, n3.
+- Edge source and target must refer to existing node ids.
+- The color must match the node type:
+  core=${NODE_COLORS.core}
+  input=${NODE_COLORS.input}
+  reactant=${NODE_COLORS.reactant}
+  output=${NODE_COLORS.output}
+  byproduct=${NODE_COLORS.byproduct}
+  process=${NODE_COLORS.process}
+- Return ONLY JSON in this exact shape:
+{
+  "nodes": [],
+  "edges": []
+}
+
+${source}
+`;
+}
+
+function parseGeminiJSON(raw = "") {
   try {
     return JSON.parse(raw);
   } catch {
     const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Invalid JSON from Gemini");
+    if (!match) throw new Error("Gemini response did not include JSON");
     return JSON.parse(match[0]);
   }
 }
 
 function normalizeConceptMap(parsed = {}, text = "", topic = "") {
   const fallback = createFallbackConceptMap(text, topic);
-  const rawNodes = Array.isArray(parsed.nodes) && parsed.nodes.length
-    ? parsed.nodes
-    : fallback.nodes;
-  const rawEdges = Array.isArray(parsed.edges)
-    ? parsed.edges
-    : fallback.edges;
+  const rawNodes = Array.isArray(parsed.nodes) ? parsed.nodes : fallback.nodes;
 
-  const nodes = assignPositions(
-    rawNodes.map((node, index) => ({
-      id: node.id || `n${index + 1}`,
-      label: node.label || `Concept ${index + 1}`,
-      type: NODE_COLORS[node.type] ? node.type : "concept",
-      description: node.description || "",
-      color: NODE_COLORS[node.type] || NODE_COLORS.concept,
-    }))
-  );
+  const nodes = rawNodes
+    .slice(0, 12)
+    .map((node, index) => normalizeNode(node, index))
+    .filter((node) => node.label);
+
+  while (nodes.length < 6) {
+    nodes.push(normalizeNode(fallback.nodes[nodes.length] || fallback.nodes[0], nodes.length));
+  }
 
   const nodeIds = new Set(nodes.map((node) => node.id));
+  const rawEdges = Array.isArray(parsed.edges) ? parsed.edges : fallback.edges;
   const edges = rawEdges
-    .map((edge, index) => ({
-      id: edge.id || `e${index + 1}`,
-      source: edge.source,
-      target: edge.target,
-      label: edge.label || "",
-      type: ["arrow", "bidirectional", "dashed"].includes(edge.type)
-        ? edge.type
-        : "arrow",
-    }))
-    .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target));
+    .slice(0, 18)
+    .map((edge, index) => normalizeEdge(edge, index))
+    .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target) && edge.source !== edge.target);
+
+  if (edges.length < 5) {
+    addFallbackEdges(edges, nodes);
+  }
 
   return {
-    title: parsed.title || fallback.title,
-    summary: parsed.summary || fallback.summary,
-    tags: Array.isArray(parsed.tags) ? parsed.tags : fallback.tags,
+    title: topic || nodes[0]?.label || "Concept Map",
+    summary: `Structured concept graph with ${nodes.length} educational concepts.`,
+    tags: [topic || nodes[0]?.label || "Concept Map"],
     nodes,
     edges,
   };
 }
 
-function createFallbackConceptMap(text = "", topic = "") {
-  const title = topic || text.split(/\s+/).filter(Boolean).slice(0, 5).join(" ") || "Concept Map";
+function normalizeNode(node = {}, index) {
+  const type = NODE_TYPES.includes(node.type) ? node.type : inferNodeType(index);
 
   return {
-    title,
-    summary: text
-      ? `Concept map generated from the provided study material about ${title}.`
-      : `Concept map generated for ${title}.`,
-    tags: [title],
-    nodes: assignPositions([
-      {
-        id: "n1",
-        label: title,
-        type: "core",
-        description: "Main concept",
-        color: NODE_COLORS.core,
-      },
-      {
-        id: "n2",
-        label: "Key Ideas",
-        type: "concept",
-        description: "Important supporting ideas",
-        color: NODE_COLORS.concept,
-      },
-    ]),
-    edges: [
-      {
-        id: "e1",
-        source: "n1",
-        target: "n2",
-        label: "includes",
-        type: "arrow",
-      },
-    ],
+    id: sanitizeId(node.id, `n${index + 1}`),
+    label: String(node.label || `Concept ${index + 1}`).trim(),
+    description: String(node.description || "Key educational concept.").trim(),
+    type,
+    color: NODE_COLORS[type],
   };
 }
 
-function assignPositions(nodes) {
-  const coreNode = nodes.find((node) => node.type === "core");
-  const others = nodes.filter((node) => node.type !== "core");
+function normalizeEdge(edge = {}, index) {
+  const type = EDGE_TYPES.includes(edge.type) ? edge.type : inferEdgeType(index);
 
-  const cx = 500;
-  const cy = 320;
-  const radius = 220;
+  return {
+    id: sanitizeId(edge.id, `e${index + 1}`),
+    source: sanitizeId(edge.source, ""),
+    target: sanitizeId(edge.target, ""),
+    label: edge.label && EDGE_TYPES.includes(edge.label) ? edge.label : type,
+    type,
+  };
+}
 
-  return nodes.map((node) => {
-    if (node.type === "core" || (coreNode && node.id === coreNode.id)) {
-      return { ...node, position: { x: cx, y: cy } };
-    }
+function sanitizeId(value, fallback) {
+  const id = String(value || fallback).trim().replace(/[^a-zA-Z0-9_-]/g, "");
+  return id || fallback;
+}
 
-    const idx = Math.max(others.findIndex((item) => item.id === node.id), 0);
-    const angle = (2 * Math.PI * idx) / Math.max(others.length, 1) - Math.PI / 2;
+function inferNodeType(index) {
+  return NODE_TYPES[Math.min(index, NODE_TYPES.length - 1)];
+}
+
+function inferEdgeType(index) {
+  return EDGE_TYPES[index % EDGE_TYPES.length];
+}
+
+function createFallbackConceptMap(text = "", topic = "") {
+  const subject = topic || text.split(/\s+/).filter(Boolean).slice(0, 4).join(" ") || "Learning Topic";
+  const labels = [
+    subject,
+    "Required Inputs",
+    "Initial Reactants",
+    "Main Process",
+    "Conversion Step",
+    "Primary Output",
+    "Released Byproducts",
+    "Supporting Conditions",
+  ];
+
+  const types = ["core", "input", "reactant", "process", "process", "output", "byproduct", "input"];
+  const nodes = labels.map((label, index) => {
+    const type = types[index];
 
     return {
-      ...node,
-      position: {
-        x: Math.round(cx + radius * Math.cos(angle)),
-        y: Math.round(cy + radius * Math.sin(angle)),
-      },
+      id: `n${index + 1}`,
+      label,
+      description: `${label} in the context of ${subject}.`,
+      type,
+      color: NODE_COLORS[type],
     };
   });
+
+  const edges = [
+    ["n2", "n4", "requires"],
+    ["n3", "n4", "requires"],
+    ["n4", "n5", "converts"],
+    ["n5", "n6", "produces"],
+    ["n4", "n7", "releases"],
+    ["n8", "n4", "absorbs"],
+  ].map(([source, target, type], index) => ({
+    id: `e${index + 1}`,
+    source,
+    target,
+    label: type,
+    type,
+  }));
+
+  return {
+    title: subject,
+    summary: `Structured concept graph with ${nodes.length} educational concepts.`,
+    tags: [subject],
+    nodes,
+    edges,
+  };
+}
+
+function addFallbackEdges(edges, nodes) {
+  for (let index = 1; index < nodes.length && edges.length < 5; index++) {
+    const type = inferEdgeType(index - 1);
+    edges.push({
+      id: `e${edges.length + 1}`,
+      source: nodes[0].id,
+      target: nodes[index].id,
+      label: type,
+      type,
+    });
+  }
 }
 
 module.exports = { generateConceptMapFromText };

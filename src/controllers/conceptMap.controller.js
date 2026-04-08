@@ -27,7 +27,10 @@ exports.generate = async (req, res, next) => {
 
     await conceptMap.save();
 
-    res.status(201).json({ success: true, data: conceptMap });
+    res.status(201).json({
+      nodes: aiResult.nodes,
+      edges: aiResult.edges,
+    });
   } catch (err) {
     next(err);
   }
