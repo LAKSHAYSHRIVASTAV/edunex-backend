@@ -7,34 +7,70 @@ const bcrypt = require("bcryptjs");
 // =======================
 const registerUser = async (req, res) => {
   try {
+    console.log(req.body);
+
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
+        success: false,
         message: "Name, email and password are required",
       });
     }
 
-    const normalizedEmail = email.toLowerCase();
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: "JWT_SECRET is not configured",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
 
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
-      return res.status(400).json({
+      return res.status(409).json({
+        success: false,
         message: "User with this email already exists",
       });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = new User({ name, email: normalizedEmail, password: hashedPassword });
+    const user = new User({
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+    });
     await user.save();
 
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     return res.status(201).json({
-      message: "User registered successfully",
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+      token,
     });
   } catch (error) {
-    console.error("registerUser error:", error);
+    console.error(error);
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "User with this email already exists",
+      });
+    }
+
     return res.status(500).json({
+      success: false,
       message: "Server error",
     });
   }

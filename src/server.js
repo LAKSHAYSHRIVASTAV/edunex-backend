@@ -32,7 +32,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "*",
+    origin: "https://edunex-frontend-xx8v.vercel.app",
     credentials: true,
   })
 );
