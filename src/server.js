@@ -32,7 +32,18 @@ const app = express();
 
 const allowedOrigins = [
   "https://edunex-frontend-xx8v.vercel.app",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
 ];
+
+const allowedOriginPatterns = [
+  /^https:\/\/edunex-frontend-[a-z0-9-]+\.vercel\.app$/i,
+];
+
+const envAllowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(
   cors({
@@ -41,13 +52,16 @@ app.use(
 
       const isAllowed =
         allowedOrigins.includes(origin) ||
-        /^https:\/\/edunex-frontend-xx8v-[a-z0-9-]+\.vercel\.app$/.test(origin);
+        envAllowedOrigins.includes(origin) ||
+        allowedOriginPatterns.some((pattern) => pattern.test(origin));
 
       if (isAllowed) {
         return callback(null, true);
       }
 
-      return callback(new Error(`CORS blocked origin: ${origin}`));
+      const corsError = new Error(`CORS blocked origin: ${origin}`);
+      corsError.statusCode = 403;
+      return callback(corsError);
     },
     credentials: true,
   })
@@ -86,8 +100,8 @@ app.use("/api/concept-maps", conceptMapRoutes);
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
 
-  res.status(500).json({
-    message: "Internal server error",
+  res.status(err.statusCode || 500).json({
+    message: err.message || "Internal server error",
   });
 });
 
