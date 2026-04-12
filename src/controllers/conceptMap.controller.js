@@ -21,17 +21,36 @@ exports.generate = async (req, res, next) => {
       nodes: aiResult.nodes,
       edges: aiResult.edges,
       summary: aiResult.summary,
-      tags: aiResult.tags || [],
+      tags: aiResult.rawConceptMap?.nodes?.slice(0, 6) || [],
       layout: 'force',
     });
 
     await conceptMap.save();
 
     res.status(201).json({
+      success: true,
+      title: aiResult.title,
+      summary: aiResult.summary,
+      conceptMap: aiResult.rawConceptMap,
       nodes: aiResult.nodes,
       edges: aiResult.edges,
+      data: {
+        _id: conceptMap._id,
+        title: aiResult.title,
+        summary: aiResult.summary,
+        rawConceptMap: aiResult.rawConceptMap,
+        nodes: aiResult.nodes,
+        edges: aiResult.edges,
+        createdAt: conceptMap.createdAt,
+      },
     });
   } catch (err) {
+    if (
+      err.message?.includes("required") ||
+      err.message?.includes("Unable to extract")
+    ) {
+      return res.status(422).json({ success: false, message: err.message });
+    }
     next(err);
   }
 };
