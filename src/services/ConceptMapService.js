@@ -1,6 +1,12 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+const MODEL_CANDIDATES = [
+  process.env.GEMINI_MODEL,
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash",
+].filter(Boolean);
+
 const genAI = process.env.GEMINI_API_KEY
   ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
   : null;
@@ -376,18 +382,38 @@ async function generateConceptMapFromText(text = "", topic = "") {
     );
   }
 
-  const model = genAI.getGenerativeModel({
-    model: GEMINI_MODEL,
-    generationConfig: {
-      temperature: 0.1,
-      responseMimeType: "application/json",
-    },
-  });
+  const prompt = buildConceptMapPrompt(inputText);
+  let lastError = null;
 
-  const result = await model.generateContent(buildConceptMapPrompt(inputText));
-  const raw = result.response.text();
-  const parsed = parseModelJson(raw);
-  return validateAndNormalizeConceptMap(parsed, inputText);
+  for (const modelName of MODEL_CANDIDATES) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: "application/json",
+        },
+      });
+
+      const result = await model.generateContent(prompt);
+      const raw = result.response.text();
+      const parsed = parseModelJson(raw);
+      return validateAndNormalizeConceptMap(parsed, inputText);
+    } catch (error) {
+      lastError = error;
+      console.error(`Concept map generation failed for model ${modelName}:`, error.message);
+    }
+  }
+
+  console.error("All Gemini model attempts failed. Falling back to local concept extraction.", lastError?.message);
+
+  return validateAndNormalizeConceptMap(
+    {
+      nodes: extractConceptsFallback(inputText),
+      edges: buildFallbackEdges(inputText, extractConceptsFallback(inputText)),
+    },
+    inputText
+  );
 }
 
 module.exports = {
