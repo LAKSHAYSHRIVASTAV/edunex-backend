@@ -5,8 +5,8 @@ const NodeSchema = new mongoose.Schema({
   label: { type: String, required: true },
   type: {
     type: String,
-    enum: ['core', 'input', 'reactant', 'output', 'byproduct', 'process'],
-    default: 'process',
+    enum: ['core', 'concept', 'input', 'reactant', 'output', 'byproduct', 'process'],
+    default: 'concept',
   },
   description: { type: String, default: '' },
   color: { type: String, default: '#5B4EE8' },
@@ -23,8 +23,7 @@ const EdgeSchema = new mongoose.Schema({
   label: { type: String, default: '' },
   type: {
     type: String,
-    enum: ['produces', 'requires', 'converts', 'absorbs', 'releases'],
-    default: 'requires',
+    default: 'concept',
   },
 });
 
