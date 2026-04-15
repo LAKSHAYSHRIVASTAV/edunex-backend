@@ -124,7 +124,7 @@ const normalizeQuizQuestions = (parsed, sourceText, requestedCount) => {
     if (normalized.length === requestedCount) break;
   }
 
-  return normalized.length === requestedCount ? normalized : [];
+ return normalized;
 };
 
 const guessQuizLabel = (body = {}) => {
@@ -252,10 +252,13 @@ Return ONLY valid JSON. No extra text.
     const quiz = normalizeQuizQuestions(parsed, sourceText, numQuestions);
 
     if (!quiz.length) {
+      console.log("⚠️ AI returned weak quiz, retrying...");
+
       return res.json({
         quiz: [],
         difficulty,
         subject,
+        message: "Try with more detailed content",
       });
     }
 
