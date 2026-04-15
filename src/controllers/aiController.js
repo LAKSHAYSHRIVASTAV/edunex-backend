@@ -124,7 +124,7 @@ const normalizeQuizQuestions = (parsed, sourceText, requestedCount) => {
     if (normalized.length === requestedCount) break;
   }
 
- return normalized;
+  return normalized.length === requestedCount ? normalized : [];
 };
 
 const guessQuizLabel = (body = {}) => {
@@ -184,59 +184,40 @@ const generateSummary = async (req, res) => {
 /* ======================================================
    AI QUIZ GENERATION
 ====================================================== */
-/* ======================================================
-   AI QUIZ GENERATION (PRODUCTION VERSION)
-   - RL based difficulty
-   - Strict prompt (content grounded)
-   - Safe parsing
-   - Smart normalization
-   - ALWAYS returns required number of questions
-====================================================== */
-
 const generateQuiz = async (req, res) => {
   try {
-    /* ================= GET INPUT ================= */
-
     const sourceText = getQuizSourceText(req.body);
-
     if (!sourceText) {
       return res.status(400).json({ message: "Text is required" });
     }
 
-    /* ================= CONTENT CHECK ================= */
-
-    // If content is too small → still continue (we will handle fallback later)
-    const isWeakContent = !hasSufficientQuizContent(sourceText);
-
-    /* ================= RL DIFFICULTY ================= */
+    if (!hasSufficientQuizContent(sourceText)) {
+      return res.json({
+        quiz: [],
+        difficulty: normalizeDifficulty(req.body?.difficulty, "medium"),
+        subject: guessQuizLabel(req.body),
+      });
+    }
 
     const avgScore = await getAverageScore(req.user.id);
     const state = rlService.getState(avgScore);
     const adaptiveDifficulty = await rlService.chooseAction(req.user.id, state);
-
     const difficulty = normalizeDifficulty(
       req.body?.difficulty,
       adaptiveDifficulty
     );
-
     const numQuestions = normalizeQuestionCount(req.body?.numQuestions, 5);
     const subject = detectSubject(sourceText);
-
-    /* ================= AI PROMPT ================= */
 
     const prompt = `
 You are an expert educator AI.
 
-STRICT RULES:
-1. Generate ONLY from the given content.
-2. Do NOT use outside knowledge.
-3. Keep questions simple and clear.
-4. Each question must have:
-   - question
-   - 4 options
-   - correct answer
-   - explanation
-5. Return ONLY JSON array.
+IMPORTANT RULES (STRICT):
+1. You MUST generate questions ONLY from the provided content below.
+2. DO NOT use any external knowledge.
+3. DO NOT generate random subjects like Physics, Math, etc.
+4. If the content is about a specific topic, ALL questions MUST be from that topic only.
+5. If content is insufficient, return an empty array [].
 
 CONTENT:
 """
@@ -244,77 +225,41 @@ ${sourceText}
 """
 
 TASK:
-Generate ${numQuestions} ${difficulty}-level MCQs.
+Generate ${numQuestions} ${difficulty}-level multiple choice questions.
 
-FORMAT:
+FORMAT (STRICT JSON ONLY):
 [
   {
     "question": "string",
     "options": ["A", "B", "C", "D"],
     "answer": "correct option text",
-    "explanation": "short explanation"
+    "explanation": "short explanation strictly from content"
   }
 ]
-`;
 
-    /* ================= AI CALL ================= */
+VALIDATION RULES:
+- Every question MUST be directly answerable from the CONTENT.
+- No hallucinated facts.
+- No unrelated subjects.
+- Keep language simple and clear.
+
+OUTPUT:
+Return ONLY valid JSON. No extra text.
+`;
 
     const result = await generateContent(prompt);
     const parsed = safeJSONParse(result);
+    const quiz = normalizeQuizQuestions(parsed, sourceText, numQuestions);
 
-    /* ================= NORMALIZATION ================= */
-
-    let rawQuestions = Array.isArray(parsed)
-      ? parsed
-      : parsed?.questions || [];
-
-    let quiz = [];
-
-    for (let item of rawQuestions) {
-      const question = item?.question?.trim();
-
-      let options = Array.isArray(item?.options)
-        ? item.options.filter(Boolean)
-        : [];
-
-      const answer = item?.answer || item?.correctAnswer;
-      const explanation = item?.explanation;
-
-      // ✅ BASIC VALIDATION (LIGHT FILTER ONLY)
-      if (!question || options.length < 2) continue;
-
-      // ensure 4 options
-      while (options.length < 4) {
-        options.push("Extra Option");
-      }
-
-      quiz.push({
-        question,
-        options: options.slice(0, 4),
-        correctAnswer: answer || options[0],
-        explanation: explanation || "No explanation provided",
-      });
-
-      if (quiz.length >= numQuestions) break;
-    }
-
-    /* ================= SMART FALLBACK ================= */
-
-    // If AI gave less → intelligently fill remaining
-    while (quiz.length < numQuestions) {
-      quiz.push({
-        question: "Based on the content, what is a key concept?",
-        options: ["Concept A", "Concept B", "Concept C", "Concept D"],
-        correctAnswer: "Concept A",
-        explanation: isWeakContent
-          ? "Content was too short, so this is a fallback question."
-          : "AI could not generate enough valid questions.",
+    if (!quiz.length) {
+      return res.json({
+        quiz: [],
+        difficulty,
+        subject,
       });
     }
 
-    /* ================= FINAL RESPONSE ================= */
-
-    return res.json({
+    res.json({
       quiz,
       difficulty,
       subject,
@@ -322,21 +267,7 @@ FORMAT:
 
   } catch (error) {
     console.error("AI Quiz Error:", error);
-
-    /* ================= HARD FALLBACK ================= */
-
-    const fallbackQuiz = Array(5).fill({
-      question: "Fallback question",
-      options: ["A", "B", "C", "D"],
-      correctAnswer: "A",
-      explanation: "Generated due to system fallback",
-    });
-
-    return res.json({
-      quiz: fallbackQuiz,
-      difficulty: "medium",
-      subject: "General",
-    });
+    res.status(500).json({ message: "AI generation failed" });
   }
 };
 
