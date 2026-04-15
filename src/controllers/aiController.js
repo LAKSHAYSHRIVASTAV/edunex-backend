@@ -273,9 +273,12 @@ const scoreQuiz = async (req, res) => {
     let score = 0;
     const normalizedSubject = normalizeSubject(subject);
 
-    questions.forEach((q, i) => {
-      if (q.correctAnswer === userAnswers[i]) score++;
-    });
+   questions.forEach((q, i) => {
+  const correct = q.correctAnswer?.trim().toLowerCase();
+  const user = userAnswers[i]?.trim().toLowerCase();
+
+  if (correct === user) score++;
+});
 
     const totalQuestions = questions.length;
     const percentage = (score / totalQuestions) * 100;
