@@ -133,7 +133,103 @@ const guessQuizLabel = (body = {}) => {
 /* ======================================================
    AUTO SUBJECT DETECTION
 ====================================================== */
-const detectSubject = (text = "") => normalizeSubject("", text);
+const detectSubject = async (text = "") => {
+  const t = text.toLowerCase();
+
+  try {
+    /* ================= AI-BASED DETECTION ================= */
+
+    const prompt = `
+Classify the following text into ONE subject only:
+
+Computer / Mathematics / Physics / English / General
+
+Rules:
+- Programming, AI, systems → Computer
+- Equations, formulas → Mathematics
+- Motion, energy, forces → Physics
+- Writing, grammar → English
+- Mixed or unclear → General
+
+TEXT:
+"""
+${text.slice(0, 2000)}
+"""
+
+Return ONLY one word.
+`;
+
+    const result = await generateContent(prompt);
+    const raw = result.trim().toLowerCase();
+
+    // ✅ normalize AI output
+    if (raw.includes("computer")) return "Computer";
+    if (raw.includes("math")) return "Mathematics";
+    if (raw.includes("physics")) return "Physics";
+    if (raw.includes("english")) return "English";
+    if (raw.includes("general")) return "General";
+
+  } catch (err) {
+    console.error("AI subject detection failed, using fallback...");
+  }
+
+  /* ================= FALLBACK (KEYWORD BASED) ================= */
+
+  if (
+    t.includes("computer") ||
+    t.includes("programming") ||
+    t.includes("software") ||
+    t.includes("algorithm") ||
+    t.includes("data structure") ||
+    t.includes("database") ||
+    t.includes("ai") ||
+    t.includes("machine learning") ||
+    t.includes("deep learning") ||
+    t.includes("neural network") ||
+    t.includes("model") ||
+    t.includes("system") ||
+    t.includes("application")
+  ) {
+    return "Computer";
+  }
+
+  if (
+    t.includes("algebra") ||
+    t.includes("calculus") ||
+    t.includes("derivative") ||
+    t.includes("integration") ||
+    t.includes("equation") ||
+    t.includes("matrix") ||
+    t.includes("probability") ||
+    t.includes("statistics")
+  ) {
+    return "Mathematics";
+  }
+
+  if (
+    t.includes("force") ||
+    t.includes("velocity") ||
+    t.includes("acceleration") ||
+    t.includes("motion") ||
+    t.includes("energy") ||
+    t.includes("newton") ||
+    t.includes("gravity")
+  ) {
+    return "Physics";
+  }
+
+  if (
+    t.includes("grammar") ||
+    t.includes("essay") ||
+    t.includes("literature") ||
+    t.includes("poem") ||
+    t.includes("writing")
+  ) {
+    return "English";
+  }
+
+  return "General";
+};
 
 /* ======================================================
    USER PERFORMANCE
@@ -240,7 +336,15 @@ Return ONLY valid JSON. No extra text.
 
     const result = await generateContent(prompt);
     const parsed = safeJSONParse(result);
-    const quiz = normalizeQuizQuestions(parsed, sourceText, numQuestions);
+   let quiz = normalizeQuizQuestions(parsed, sourceText, numQuestions);
+
+//  CLEAN DATA (prevents mismatch bug)
+quiz = quiz.map(q => ({
+  question: q.question?.trim(),
+  options: q.options?.map(opt => opt.trim()),
+  correctAnswer: q.correctAnswer?.trim(),
+  explanation: q.explanation?.trim(),
+}));
 
     
 
