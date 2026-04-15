@@ -67,7 +67,9 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.options("*", cors());
+
+app.use(express.json({ limit: "2mb" }));
 
 app.get("/health", (req, res) => {
   res.status(200).json({
