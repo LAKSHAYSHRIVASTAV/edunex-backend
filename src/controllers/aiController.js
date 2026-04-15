@@ -4,6 +4,7 @@ const QuizHistory = require("../models/QuizHistory");
 const UserActivity = require("../models/UserActivity");
 const rlService = require("../services/rlService");
 const { updateUserProgress } = require("../services/progressService");
+const { normalizeSubject } = require("../utils/subjectUtils");
 
 /* ======================================================
    SAFE JSON PARSER
@@ -137,19 +138,7 @@ const guessQuizLabel = (body = {}) => {
 /* ======================================================
    AUTO SUBJECT DETECTION
 ====================================================== */
-const detectSubject = (text = "") => {
-  const lower = text.toLowerCase();
-
-  if (lower.match(/math|algebra|equation|calculus|derivative/)) return "Mathematics";
-  if (lower.match(/physics|force|energy|motion|velocity|acceleration/)) return "Physics";
-  if (lower.match(/chemistry|reaction|molecule|atom/)) return "Chemistry";
-  if (lower.match(/biology|cell|dna|organism/)) return "Biology";
-  if (lower.match(/english|grammar|literature|sentence/)) return "English";
-  if (lower.match(/computer|coding|programming|algorithm/)) return "Computer";
-  if (lower.match(/ai|machine learning|neural network/)) return "AI";
-
-  return "General";
-};
+const detectSubject = (text = "") => normalizeSubject("", text);
 
 /* ======================================================
    USER PERFORMANCE
@@ -218,7 +207,7 @@ const generateQuiz = async (req, res) => {
       adaptiveDifficulty
     );
     const numQuestions = normalizeQuestionCount(req.body?.numQuestions, 5);
-    const subject = guessQuizLabel(req.body);
+    const subject = detectSubject(sourceText);
 
     const prompt = `
 You are an expert educator AI.
@@ -297,6 +286,7 @@ const scoreQuiz = async (req, res) => {
     }
 
     let score = 0;
+    const normalizedSubject = normalizeSubject(subject);
 
     questions.forEach((q, i) => {
       if (q.correctAnswer === userAnswers[i]) score++;
@@ -308,8 +298,8 @@ const scoreQuiz = async (req, res) => {
     // 🔥 SAVE FULL DATA (FIXED)
     await QuizHistory.create({
       user: userId,
-      subject,
-      topic: topic || subject, // Use subject as fallback if topic is missing
+      subject: normalizedSubject,
+      topic: topic || normalizedSubject,
       score,
       totalQuestions,
       difficulty,
@@ -320,7 +310,7 @@ const scoreQuiz = async (req, res) => {
     await UserActivity.create({
       user: userId,
       type: "quiz",
-      subject,
+      subject: normalizedSubject,
       score,
       durationMinutes: 10,
     });

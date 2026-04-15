@@ -1,5 +1,6 @@
 const QuizHistory = require("../models/QuizHistory");
 const UserActivity = require("../models/UserActivity");
+const { normalizeSubject } = require("../utils/subjectUtils");
 
 /* ========================================
    📊 MAIN ANALYTICS CONTROLLER
@@ -53,7 +54,7 @@ exports.getAnalytics = async (req, res) => {
     const subjectCount = {};
 
     quizzes.forEach((quiz) => {
-      const subject = quiz.subject || "General";
+      const subject = normalizeSubject(quiz.subject);
 
       if (!subjectCount[subject]) {
         subjectCount[subject] = 0;
@@ -215,7 +216,7 @@ exports.getProgressOverview = async (req, res) => {
       const minutes = activity.durationMinutes || 0;
       totalMinutes += minutes;
 
-      const subject = activity.subject || "General";
+      const subject = normalizeSubject(activity.subject);
 
       if (!subjectMap[subject]) {
         subjectMap[subject] = 0;
@@ -370,7 +371,7 @@ exports.getKnowledgeGraph = async (req, res) => {
     const subjectScores = {};
 
     quizzes.forEach((quiz) => {
-      const subject = quiz.subject || "General";
+      const subject = normalizeSubject(quiz.subject);
       const percent = (quiz.score / quiz.totalQuestions) * 100;
 
       if (!subjectScores[subject]) {
@@ -410,7 +411,7 @@ exports.getKnowledgeGraph = async (req, res) => {
 
 
       // Assign color
-      colors.push(subjectColors[subject] || "#94A3B8");
+      colors.push(subjectColors[subject] || "#F59E0B");
     });
 
     res.json({

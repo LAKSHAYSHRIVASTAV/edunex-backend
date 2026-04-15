@@ -1,6 +1,7 @@
 const UserActivity = require("../models/UserActivity");
 const QuizHistory = require("../models/QuizHistory");
 const rlService = require("../services/rlService");
+const { normalizeSubject } = require("../utils/subjectUtils");
 
 exports.getDashboardData = async (req, res) => {
 
@@ -106,7 +107,7 @@ exports.getDashboardData = async (req, res) => {
 
     quizzes.forEach((quiz) => {
 
-      const subject = quiz.subject || "General";
+      const subject = normalizeSubject(quiz.subject);
 
       subjectMap[subject] =
         (subjectMap[subject] || 0) + 1;

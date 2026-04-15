@@ -4,6 +4,7 @@ const User = require("../models/User");
 const QuizHistory = require("../models/QuizHistory");
 const UserActivity = require("../models/UserActivity");
 const FlashcardProgress = require("../models/FlashcardProgress");
+const { normalizeSubject } = require("../utils/subjectUtils");
 
 const PERIOD_DAYS = {
   "7d": 7,
@@ -357,7 +358,7 @@ const buildReport = async (userId, period) => {
   const summariesCreated = statMap.summary?.count || 0;
 
   const subjectBreakdown = subjectStats.map((subject) => ({
-    subject: subject._id || "General",
+    subject: normalizeSubject(subject._id),
     progress: round(clamp(subject.avgScore)),
     improvementRate: round((subject.lastScore || 0) - (subject.firstScore || 0), 1),
     attempts: subject.attempts,
@@ -367,7 +368,7 @@ const buildReport = async (userId, period) => {
     .filter((topic) => topic.avgScore < 50)
     .map((topic) => ({
       topic: topic._id.topic || topic._id.subject || "General",
-      subject: topic._id.subject || "General",
+      subject: normalizeSubject(topic._id.subject),
       score: round(topic.avgScore),
       attempts: topic.attempts,
     }));
@@ -377,7 +378,7 @@ const buildReport = async (userId, period) => {
     .sort((a, b) => b.avgScore - a.avgScore)
     .map((topic) => ({
       topic: topic._id.topic || topic._id.subject || "General",
-      subject: topic._id.subject || "General",
+      subject: normalizeSubject(topic._id.subject),
       score: round(topic.avgScore),
       attempts: topic.attempts,
     }));
@@ -438,7 +439,7 @@ const buildReport = async (userId, period) => {
     summaries: summaries.map((summary) => ({
       id: summary._id,
       title: `${summary.subject || "General"} summary`,
-      subject: summary.subject || "General",
+      subject: normalizeSubject(summary.subject),
       durationMinutes: summary.durationMinutes || 0,
       date: summary.createdAt,
     })),

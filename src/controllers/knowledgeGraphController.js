@@ -1,4 +1,5 @@
 const QuizHistory = require("../models/QuizHistory");
+const { normalizeSubject } = require("../utils/subjectUtils");
 
 exports.getKnowledgeGraph = async (req, res) => {
 
@@ -12,7 +13,7 @@ exports.getKnowledgeGraph = async (req, res) => {
 
     attempts.forEach((attempt) => {
 
-      const subject = attempt.subject || "General";
+      const subject = normalizeSubject(attempt.subject);
 
       if (!subjectScores[subject]) {
 
