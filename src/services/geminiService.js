@@ -1,18 +1,27 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const API_KEY = process.env.GEMINI_API_KEY;
+const getGenAIClient = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
 
-if (!API_KEY) {
-  throw new Error("GEMINI_API_KEY is not set in environment variables");
-}
+  if (!apiKey) {
+    return null;
+  }
 
-const genAI = new GoogleGenerativeAI(API_KEY);
+  return new GoogleGenerativeAI(apiKey);
+};
 
 /* ======================================================
    GENERATE CONTENT (GEMINI 2.5 - STABLE)
 ====================================================== */
 async function generateContent(prompt) {
   try {
+    const genAI = getGenAIClient();
+
+    if (!genAI) {
+      console.warn("Gemini request skipped: GEMINI_API_KEY is not configured");
+      return "AI is temporarily unavailable. Please try again.";
+    }
+
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
     });
