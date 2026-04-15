@@ -107,12 +107,7 @@ const normalizeQuizQuestions = (parsed, sourceText, requestedCount) => {
     const explanation =
       typeof item?.explanation === "string" ? item.explanation.trim() : "";
 
-    if (!question || options.length !== 4 || !answer || !explanation) continue;
-    if (!options.includes(answer)) continue;
-    if (!isGroundedInContent(question, contentTokens)) continue;
-    if (!isGroundedInContent(answer, contentTokens)) continue;
-    if (!isGroundedInContent(explanation, contentTokens)) continue;
-
+   if (!question || options.length < 2) continue;
     normalized.push({
       question,
       options,
@@ -124,7 +119,7 @@ const normalizeQuizQuestions = (parsed, sourceText, requestedCount) => {
     if (normalized.length === requestedCount) break;
   }
 
-  return normalized.length === requestedCount ? normalized : [];
+ return normalized;
 };
 
 const guessQuizLabel = (body = {}) => {
@@ -192,11 +187,7 @@ const generateQuiz = async (req, res) => {
     }
 
     if (!hasSufficientQuizContent(sourceText)) {
-      return res.json({
-        quiz: [],
-        difficulty: normalizeDifficulty(req.body?.difficulty, "medium"),
-        subject: guessQuizLabel(req.body),
-      });
+      console.log("⚠️ Weak content, but continuing...");
     }
 
     const avgScore = await getAverageScore(req.user.id);
@@ -251,13 +242,7 @@ Return ONLY valid JSON. No extra text.
     const parsed = safeJSONParse(result);
     const quiz = normalizeQuizQuestions(parsed, sourceText, numQuestions);
 
-    if (!quiz.length) {
-      return res.json({
-        quiz: [],
-        difficulty,
-        subject,
-      });
-    }
+    
 
     res.json({
       quiz,
