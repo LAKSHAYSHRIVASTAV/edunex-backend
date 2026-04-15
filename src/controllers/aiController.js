@@ -133,48 +133,10 @@ const guessQuizLabel = (body = {}) => {
 /* ======================================================
    AUTO SUBJECT DETECTION
 ====================================================== */
-const detectSubject = async (text = "") => {
+const detectSubject = (text = "") => {
   const t = text.toLowerCase();
 
-  try {
-    /* ================= AI-BASED DETECTION ================= */
-
-    const prompt = `
-Classify the following text into ONE subject only:
-
-Computer / Mathematics / Physics / English / General
-
-Rules:
-- Programming, AI, systems → Computer
-- Equations, formulas → Mathematics
-- Motion, energy, forces → Physics
-- Writing, grammar → English
-- Mixed or unclear → General
-
-TEXT:
-"""
-${text.slice(0, 2000)}
-"""
-
-Return ONLY one word.
-`;
-
-    const result = await generateContent(prompt);
-    const raw = result.trim().toLowerCase();
-
-    // ✅ normalize AI output
-    if (raw.includes("computer")) return "Computer";
-    if (raw.includes("math")) return "Mathematics";
-    if (raw.includes("physics")) return "Physics";
-    if (raw.includes("english")) return "English";
-    if (raw.includes("general")) return "General";
-
-  } catch (err) {
-    console.error("AI subject detection failed, using fallback...");
-  }
-
-  /* ================= FALLBACK (KEYWORD BASED) ================= */
-
+  /* ================= COMPUTER / AI (TOP PRIORITY) ================= */
   if (
     t.includes("computer") ||
     t.includes("programming") ||
@@ -193,6 +155,7 @@ Return ONLY one word.
     return "Computer";
   }
 
+  /* ================= MATHEMATICS ================= */
   if (
     t.includes("algebra") ||
     t.includes("calculus") ||
@@ -206,6 +169,7 @@ Return ONLY one word.
     return "Mathematics";
   }
 
+  /* ================= PHYSICS ================= */
   if (
     t.includes("force") ||
     t.includes("velocity") ||
@@ -213,21 +177,27 @@ Return ONLY one word.
     t.includes("motion") ||
     t.includes("energy") ||
     t.includes("newton") ||
-    t.includes("gravity")
+    t.includes("gravity") ||
+    t.includes("electric") ||
+    t.includes("magnetic")
   ) {
     return "Physics";
   }
 
+  /* ================= ENGLISH ================= */
   if (
     t.includes("grammar") ||
     t.includes("essay") ||
     t.includes("literature") ||
     t.includes("poem") ||
-    t.includes("writing")
+    t.includes("story") ||
+    t.includes("writing") ||
+    t.includes("sentence")
   ) {
     return "English";
   }
 
+  /* ================= DEFAULT ================= */
   return "General";
 };
 
