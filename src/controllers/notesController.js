@@ -6,41 +6,67 @@ exports.generateNotes = async (req, res) => {
   try {
     const { content, difficulty } = req.body;
 
-    if (!content) {
-      return res.status(400).json({ success: false, message: "Content is required" });
+    // ✅ Validate input
+    if (!content || content.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Content is required",
+      });
     }
 
-  const model = genAI.getGenerativeModel({
-  model: "gemini-pro"
-});
+    // ✅ Debug API key (temporary)
+    console.log("API KEY EXISTS:", !!process.env.GEMINI_API_KEY);
 
+    // ✅ Use supported model
+    const model = genAI.getGenerativeModel({
+      model: "gemini-pro",
+    });
+
+    // ✅ Build prompt
     const prompt = `
-Act as an expert teacher and generate structured study notes.
+You are an expert teacher.
 
-Requirements:
+Create clear and structured study notes from the content below.
+
+Instructions:
 - Use headings and subheadings
 - Use bullet points
 - Keep explanations simple
 - Highlight key concepts
 - Maintain logical flow
 
-Difficulty level: ${difficulty}
+Difficulty: ${difficulty || "Medium"}
 
 Content:
 ${content}
 `;
 
+    // ✅ Generate content
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const notes = response.text();
 
-    res.json({
+    // ✅ SAFE response extraction
+    if (!result || !result.response) {
+      throw new Error("Invalid response from Gemini API");
+    }
+
+    const notes = result.response.text();
+
+    if (!notes) {
+      throw new Error("Empty response from AI");
+    }
+
+    // ✅ Send response
+    return res.json({
       success: true,
       notes,
     });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Server Error" });
+    console.error("❌ GENERATE NOTES ERROR:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+    });
   }
 };
