@@ -30,51 +30,54 @@ const conceptMapRoutes = require("./routes/conceptMapRoutes");
 
 const app = express();
 
+/* =========================
+   ✅ FIXED CORS CONFIG
+========================= */
+
 const allowedOrigins = [
-  "https://edunex-frontend-xx8v.vercel.app",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "https://edunex-frontend.vercel.app", // ✅ production domain
 ];
 
+// allow ALL vercel preview + production URLs
 const allowedOriginPatterns = [
-  /^https:\/\/edunex-frontend-[a-z0-9-]+\.vercel\.app$/i,
+  /^https:\/\/.*\.vercel\.app$/i,
 ];
-
-const envAllowedOrigins = (process.env.ALLOWED_ORIGINS || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
 
 app.use(
   cors({
-    origin(origin, callback) {
+    origin: (origin, callback) => {
+      // allow requests like Postman / curl (no origin)
       if (!origin) return callback(null, true);
 
       const isAllowed =
         allowedOrigins.includes(origin) ||
-        envAllowedOrigins.includes(origin) ||
         allowedOriginPatterns.some((pattern) => pattern.test(origin));
 
       if (isAllowed) {
         return callback(null, true);
       }
 
-      const corsError = new Error(`CORS blocked origin: ${origin}`);
-      corsError.statusCode = 403;
-      return callback(corsError);
+      console.log("❌ Blocked by CORS:", origin);
+      return callback(new Error("CORS not allowed"));
     },
     credentials: true,
   })
 );
 
+/* ========================= */
+
 app.use(express.json({ limit: "2mb" }));
 
+// health check
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "Backend is running successfully",
   });
 });
 
+// routes
 app.use("/api/auth", authRoutes);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/ai", aiRoutes);
@@ -97,10 +100,11 @@ app.use("/api/flashcards", flashcardRoutes);
 app.use("/api", reportRoutes);
 app.use("/api/concept-maps", conceptMapRoutes);
 
+// global error handler
 app.use((err, req, res, next) => {
-  console.error("Server Error:", err);
+  console.error("🔥 Server Error:", err.message);
 
-  res.status(err.statusCode || 500).json({
+  res.status(500).json({
     message: err.message || "Internal server error",
   });
 });
@@ -112,10 +116,10 @@ const startServer = async () => {
     await connectDB();
 
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`🚀 Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error("Failed to start server:", error.message);
+    console.error("❌ Failed to start server:", error.message);
     process.exit(1);
   }
 };
