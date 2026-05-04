@@ -10,7 +10,9 @@ exports.generateNotes = async (req, res) => {
       return res.status(400).json({ success: false, message: "Content is required" });
     }
 
-   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+  const model = genAI.getGenerativeModel({
+  model: "gemini-pro"
+});
 
     const prompt = `
 Act as an expert teacher and generate structured study notes.
