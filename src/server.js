@@ -27,6 +27,7 @@ const chatHistoryRoutes = require("./routes/chatHistoryRoutes");
 const flashcardRoutes = require("./routes/flashcardRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const conceptMapRoutes = require("./routes/conceptMapRoutes");
+const notesRoutes = require("./routes/notesRoutes");
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.use("/api/chat-history", chatHistoryRoutes);
 app.use("/api/flashcards", flashcardRoutes);
 app.use("/api", reportRoutes);
 app.use("/api/concept-maps", conceptMapRoutes);
+app.use("/api/notes", notesRoutes);
 
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
