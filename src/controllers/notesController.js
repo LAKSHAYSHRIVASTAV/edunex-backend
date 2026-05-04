@@ -17,10 +17,9 @@ exports.generateNotes = async (req, res) => {
     // ✅ Debug API key (temporary)
     console.log("API KEY EXISTS:", !!process.env.GEMINI_API_KEY);
 
-    // ✅ Use supported model
-    const model = genAI.getGenerativeModel({
-      model: "gemini-pro",
-    });
+   const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-flash",
+});
 
     // ✅ Build prompt
     const prompt = `
